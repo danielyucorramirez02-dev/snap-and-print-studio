@@ -70,6 +70,9 @@ export default function BookingFlow({ services }: BookingFlowProps) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [celebrantName, setCelebrantName] = useState("");
+  const [turningAge, setTurningAge] = useState("");
+  const [milestoneTheme, setMilestoneTheme] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [downpaymentConfirmed, setDownpaymentConfirmed] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -138,6 +141,11 @@ export default function BookingFlow({ services }: BookingFlowProps) {
     if (!name.trim()) e.name = "Name is required";
     if (!phone.trim()) e.phone = "Phone is required";
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Enter a valid email";
+    if (sessionType === "milestone") {
+      if (!celebrantName.trim()) e.celebrantName = "Celebrant name is required";
+      if (!turningAge.trim()) e.turningAge = "Turning age is required";
+      if (!milestoneTheme.trim()) e.milestoneTheme = "Theme is required";
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -190,10 +198,16 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       const { data: { publicUrl } } = supabase.storage.from("receipts").getPublicUrl(uploadData.path);
 
       // 2. Create booking
-      const addonNotes =
-        selectedAddons.length > 0
-          ? "Additionals: " + selectedAddons.map((a) => `${a.label} (₱${a.price})`).join(", ")
-          : undefined;
+      const noteParts: string[] = [];
+      if (sessionType === "milestone") {
+        noteParts.push(`Celebrant: ${celebrantName}`);
+        noteParts.push(`Turning: ${turningAge}`);
+        noteParts.push(`Theme: ${milestoneTheme}`);
+      }
+      if (selectedAddons.length > 0) {
+        noteParts.push("Additionals: " + selectedAddons.map((a) => `${a.label} (₱${a.price})`).join(", "));
+      }
+      const addonNotes = noteParts.length > 0 ? noteParts.join(" | ") : undefined;
 
       const res = await createPublicBooking({
         serviceId: selectedService.id,
@@ -527,6 +541,13 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       </div>
 
       <div className="space-y-4">
+        {/* Milestone heading hint */}
+        {sessionType === "milestone" && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-brand-500/10 border border-brand-500/20 text-brand-300 text-xs">
+            <span className="shrink-0">🎂</span>
+            Fill in your contact details first, then the celebrant info below.
+          </div>
+        )}
         <div className="space-y-1.5">
           <label className="text-charcoal-300 text-sm">Full Name <span className="text-red-400">*</span></label>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Maria Santos"
@@ -547,6 +568,35 @@ export default function BookingFlow({ services }: BookingFlowProps) {
             className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500" />
           {errors.email && <p className="text-red-400 text-xs">{errors.email}</p>}
         </div>
+
+        {sessionType === "milestone" && (
+          <>
+            <div className="flex items-center gap-2 pt-1">
+              <div className="flex-1 h-px bg-charcoal-700" />
+              <span className="text-charcoal-500 text-xs uppercase tracking-wider">🎂 Milestone Details</span>
+              <div className="flex-1 h-px bg-charcoal-700" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-charcoal-300 text-sm">Celebrant Name <span className="text-red-400">*</span></label>
+              <input value={celebrantName} onChange={(e) => setCelebrantName(e.target.value)} placeholder="e.g. Sofia Grace"
+                className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500" />
+              {errors.celebrantName && <p className="text-red-400 text-xs">{errors.celebrantName}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-charcoal-300 text-sm">Turning Age <span className="text-red-400">*</span></label>
+              <input value={turningAge} onChange={(e) => setTurningAge(e.target.value)} placeholder="e.g. 7"
+                className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500" />
+              {errors.turningAge && <p className="text-red-400 text-xs">{errors.turningAge}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-charcoal-300 text-sm">Theme <span className="text-red-400">*</span></label>
+              <input value={milestoneTheme} onChange={(e) => setMilestoneTheme(e.target.value)} placeholder="e.g. Fairy Garden, Dinosaur, Unicorn"
+                className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500" />
+              {errors.milestoneTheme && <p className="text-red-400 text-xs">{errors.milestoneTheme}</p>}
+            </div>
+          </>
+        )}
+
         <div className="flex items-start gap-2 p-3 rounded-lg bg-charcoal-800 border border-charcoal-700 text-xs text-charcoal-400">
           <Clock size={13} className="shrink-0 mt-0.5 text-amber-400" />
           <span><strong className="text-amber-400">Late policy:</strong> Arrivals 15 minutes or more past your scheduled time will incur a ₱50 late fee.</span>
@@ -732,6 +782,22 @@ export default function BookingFlow({ services }: BookingFlowProps) {
           <span className="text-charcoal-400">Time</span>
           <span className="text-white">{formatSlotLabel(time)}{isRequestBooking ? " (preferred)" : ""}</span>
         </div>
+        {sessionType === "milestone" && (
+          <>
+            <div className="flex justify-between text-sm">
+              <span className="text-charcoal-400">Celebrant</span>
+              <span className="text-white">{celebrantName}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-charcoal-400">Turning</span>
+              <span className="text-white">{turningAge}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-charcoal-400">Theme</span>
+              <span className="text-white">{milestoneTheme}</span>
+            </div>
+          </>
+        )}
         {selectedAddons.length > 0 && (
           <div className="flex justify-between text-sm">
             <span className="text-charcoal-400">Add-ons</span>
