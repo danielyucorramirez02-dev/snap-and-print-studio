@@ -1,5 +1,7 @@
 export type UserRole = "owner" | "staff";
 
+export type BookingStatus = "confirmed" | "pending" | "cancelled";
+
 export type PaymentStatus = "unpaid" | "partial" | "paid";
 
 export type PaymentMethod = "cash" | "gcash" | "bank";
@@ -39,10 +41,13 @@ export interface Booking {
   downpayment_paid: boolean;
   balance: number;
   payment_status: PaymentStatus;
+  booking_status: BookingStatus;
+  booking_token: string;
   notes: string | null;
+  receipt_url: string | null;
   session_folder: string | null;
   reminder_sent: boolean;
-  created_by: string;
+  created_by: string | null;
   created_at: string;
   // joined
   service?: Service;
@@ -78,6 +83,7 @@ export interface Expense {
   description: string;
   amount: number;
   expense_date: string;
+  notes: string | null;
   receipt_url: string | null;
   recorded_by: string;
   created_at: string;

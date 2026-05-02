@@ -1,15 +1,56 @@
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { CalendarDays } from "lucide-react";
+import type { Booking, Service, UserRole } from "@/types";
+import CalendarClient from "@/components/bookings/CalendarClient";
 
-export default function CalendarPage() {
+export default async function CalendarPage() {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const { data: services } = await supabase
+    .from("services")
+    .select("*")
+    .eq("is_active", true)
+    .order("price", { ascending: true });
+
+  const { data: bookings } = await supabase
+    .from("bookings")
+    .select("*, service:services(*)")
+    .order("booking_date", { ascending: true })
+    .order("booking_time", { ascending: true });
+
+  const allBookings = (bookings ?? []) as Booking[];
+  const allServices = (services ?? []) as Service[];
+  const userRole = (profile?.role ?? "staff") as UserRole;
+
   return (
-    <div className="flex flex-col items-center justify-center h-96 text-center space-y-4">
-      <div className="w-16 h-16 rounded-2xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center">
-        <CalendarDays size={32} className="text-brand-400" />
+    <div>
+      <div className="flex items-center gap-3 mb-8">
+        <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
+          <CalendarDays size={20} className="text-brand-400" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold text-white">Calendar</h1>
+          <p className="text-charcoal-400 text-sm">
+            {allBookings.length} booking{allBookings.length !== 1 ? "s" : ""} total
+          </p>
+        </div>
       </div>
-      <div>
-        <h2 className="text-xl font-semibold text-white">Calendar</h2>
-        <p className="text-charcoal-400 mt-1">Booking calendar coming soon.</p>
-      </div>
+
+      <CalendarClient
+        bookings={allBookings}
+        services={allServices}
+        userRole={userRole}
+      />
     </div>
   );
 }
