@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import StudioLogo from "@/components/shared/StudioLogo";
-import { X, CalendarDays, CreditCard, Package, BarChart3, Images, Receipt, Layers, Settings, Sparkles } from "lucide-react";
+import { X, CalendarDays, CreditCard, Package, BarChart3, Images, Receipt, Layers, Settings, Sparkles, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
 const navItems = [
-  { href: "/calendar",  label: "Calendar",          icon: CalendarDays, roles: ["owner", "staff"] as UserRole[] },
-  { href: "/payments",  label: "Payments",           icon: CreditCard,   roles: ["owner", "staff"] as UserRole[] },
+  { href: "/new-booking", label: "New Booking",        icon: PlusCircle,   roles: ["owner", "staff"] as UserRole[] },
+  { href: "/calendar",    label: "Calendar",            icon: CalendarDays, roles: ["owner", "staff"] as UserRole[] },
+  { href: "/payments",    label: "Payments",            icon: CreditCard,   roles: ["owner", "staff"] as UserRole[] },
   { href: "/services",  label: "Services",           icon: Layers,       roles: ["owner", "staff"] as UserRole[] },
   { href: "/inventory", label: "Inventory",          icon: Package,      roles: ["owner", "staff"] as UserRole[] },
   { href: "/reports",   label: "Reports",            icon: BarChart3,    roles: ["owner"] as UserRole[] },

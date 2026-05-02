@@ -21,7 +21,16 @@ export async function createBooking(
     client_name, client_phone, client_email,
     booking_date, booking_time, package_id,
     total_amount, downpayment_amount, notes,
+    celebrant_name, turning_age, theme,
   } = parsed.data;
+
+  // Combine milestone details + free notes into one stored string
+  const noteParts: string[] = [];
+  if (celebrant_name) noteParts.push(`Celebrant: ${celebrant_name}`);
+  if (turning_age) noteParts.push(`Turning: ${turning_age}`);
+  if (theme) noteParts.push(`Theme: ${theme}`);
+  if (notes) noteParts.push(notes);
+  const combinedNotes = noteParts.length > 0 ? noteParts.join(" | ") : null;
 
   const payment_status =
     downpayment_amount >= total_amount ? "paid"
@@ -39,7 +48,7 @@ export async function createBooking(
     downpayment_amount,
     downpayment_paid: downpayment_amount > 0,
     payment_status,
-    notes: notes || null,
+    notes: combinedNotes,
     created_by: user.id,
   }).select("id").single();
 
@@ -60,6 +69,9 @@ export async function createBooking(
     balance: total_amount - downpayment_amount,
     bookingStatus: "confirmed",
     paymentStatus: payment_status,
+    celebrantName: celebrant_name,
+    turningAge: turning_age,
+    theme,
   });
 
   revalidatePath("/calendar");

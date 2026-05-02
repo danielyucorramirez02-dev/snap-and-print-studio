@@ -10,6 +10,9 @@ export const bookingSchema = z.object({
   total_amount: z.coerce.number().min(1, "Total must be at least ₱1"),
   downpayment_amount: z.coerce.number().min(0, "Downpayment cannot be negative"),
   notes: z.string().optional(),
+  celebrant_name: z.string().optional(),
+  turning_age: z.string().optional(),
+  theme: z.string().optional(),
 }).refine(
   (d) => d.downpayment_amount <= d.total_amount,
   { message: "Downpayment cannot exceed the total amount", path: ["downpayment_amount"] }
