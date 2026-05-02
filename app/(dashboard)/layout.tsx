@@ -1,19 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Sidebar from "@/components/shared/Sidebar";
-import Header from "@/components/shared/Header";
+import DashboardShell from "@/components/shared/DashboardShell";
 import type { UserRole } from "@/types";
-
-const pageTitles: Record<string, string> = {
-  "/calendar":  "Calendar",
-  "/payments":  "Payments",
-  "/services":  "Services & Packages",
-  "/inventory": "Inventory",
-  "/reports":   "Reports",
-  "/gallery":   "Client Gallery",
-  "/expenses":  "Expense Tracker",
-  "/settings":  "Settings",
-};
 
 export default async function DashboardLayout({
   children,
@@ -38,14 +26,8 @@ export default async function DashboardLayout({
   const role = (profile?.role ?? "staff") as UserRole;
 
   return (
-    <div className="flex min-h-screen bg-charcoal-950">
-      <Sidebar userRole={role} />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header fullName={fullName} role={role} pageTitle="Dashboard" />
-        <main className="flex-1 p-6 overflow-auto">
-          {children}
-        </main>
-      </div>
-    </div>
+    <DashboardShell fullName={fullName} role={role}>
+      {children}
+    </DashboardShell>
   );
 }
