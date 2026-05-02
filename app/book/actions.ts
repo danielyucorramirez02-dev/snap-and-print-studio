@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSelfShootSlots } from "@/lib/utils/slots";
 import { sendBookingConfirmation } from "@/lib/email";
+import { logBookingToSheet } from "@/lib/google-sheets";
 import type { Booking, Service } from "@/types";
 
 export async function getServicesForBooking(): Promise<Service[]> {
@@ -130,6 +131,23 @@ export async function createPublicBooking(input: {
       bookingToken: token,
     });
   }
+
+  // Log to Google Sheets (non-blocking)
+  logBookingToSheet({
+    clientName: input.clientName,
+    clientPhone: input.clientPhone,
+    clientEmail: input.clientEmail,
+    bookingDate: input.date,
+    bookingTime: input.time,
+    packageName: service.name,
+    addons: input.addonNotes ?? "",
+    total: input.totalAmount,
+    downpayment: input.downpaymentAmount,
+    balance: input.totalAmount - input.downpaymentAmount,
+    bookingStatus,
+    paymentStatus: payment_status,
+    receiptUrl: input.receiptUrl,
+  });
 
   return { success: true, token, status: bookingStatus };
 }

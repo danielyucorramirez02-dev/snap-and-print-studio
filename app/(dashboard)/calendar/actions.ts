@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { bookingSchema, type BookingFormData } from "@/lib/validations/booking";
 import { sendBookingConfirmation, sendGalleryLink } from "@/lib/email";
+import { logBookingToSheet } from "@/lib/google-sheets";
 
 export async function createBooking(
   data: BookingFormData
@@ -43,6 +44,24 @@ export async function createBooking(
   });
 
   if (error) return { error: error.message };
+
+  // Log to Google Sheets (non-blocking)
+  const { data: service } = await supabase.from("services").select("name").eq("id", package_id).single();
+  logBookingToSheet({
+    clientName: client_name,
+    clientPhone: client_phone,
+    clientEmail: client_email || "",
+    bookingDate: booking_date,
+    bookingTime: booking_time,
+    packageName: service?.name ?? "",
+    addons: notes || "",
+    total: total_amount,
+    downpayment: downpayment_amount,
+    balance: total_amount - downpayment_amount,
+    bookingStatus: "confirmed",
+    paymentStatus: payment_status,
+  });
+
   revalidatePath("/calendar");
   return { success: true };
 }

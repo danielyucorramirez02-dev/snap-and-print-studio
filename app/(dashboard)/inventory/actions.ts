@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { inventorySchema, type InventoryFormData } from "@/lib/validations/inventory";
+import { logInventoryToSheet } from "@/lib/google-sheets";
 
 export async function createInventoryItem(
   data: InventoryFormData
@@ -22,6 +23,18 @@ export async function createInventoryItem(
   });
 
   if (error) return { error: error.message };
+
+  // Log new item to Google Sheets (non-blocking)
+  logInventoryToSheet({
+    itemName: parsed.data.item_name,
+    quantity: parsed.data.quantity,
+    unit: parsed.data.unit,
+    unitCost: parsed.data.unit_cost,
+    sellingPrice: parsed.data.selling_price,
+    supplier: parsed.data.supplier || "",
+    lowStockThreshold: parsed.data.low_stock_threshold,
+  });
+
   revalidatePath("/inventory");
   return { success: true };
 }
