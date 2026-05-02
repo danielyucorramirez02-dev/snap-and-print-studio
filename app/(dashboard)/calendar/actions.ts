@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { bookingSchema, type BookingFormData } from "@/lib/validations/booking";
 import { sendBookingConfirmation, sendGalleryLink } from "@/lib/email";
-import { logBookingToSheet } from "@/lib/google-sheets";
+import { logBookingToSheet, updateBookingInSheet, deleteBookingFromSheet } from "@/lib/google-sheets";
 
 export async function createBooking(
   data: BookingFormData
@@ -28,7 +28,7 @@ export async function createBooking(
     : downpayment_amount > 0 ? "partial"
     : "unpaid";
 
-  const { error } = await supabase.from("bookings").insert({
+  const { data: inserted, error } = await supabase.from("bookings").insert({
     client_name,
     client_phone,
     client_email: client_email || null,
@@ -41,13 +41,14 @@ export async function createBooking(
     payment_status,
     notes: notes || null,
     created_by: user.id,
-  });
+  }).select("id").single();
 
   if (error) return { error: error.message };
 
   // Log to Google Sheets (non-blocking)
   const { data: service } = await supabase.from("services").select("name").eq("id", package_id).single();
   logBookingToSheet({
+    bookingId: inserted?.id,
     clientName: client_name,
     clientPhone: client_phone,
     clientEmail: client_email || "",
@@ -92,6 +93,14 @@ export async function markBookingPaid(
     .eq("id", bookingId);
 
   if (error) return { error: error.message };
+
+  // Sync to Google Sheets (non-blocking)
+  updateBookingInSheet(bookingId, {
+    paymentStatus: "paid",
+    downpayment: booking.total_amount,
+    balance: 0,
+  });
+
   revalidatePath("/calendar");
   return { success: true };
 }
@@ -129,6 +138,14 @@ export async function updatePaymentStatus(
     .eq("id", bookingId);
 
   if (error) return { error: error.message };
+
+  // Sync to Google Sheets (non-blocking)
+  updateBookingInSheet(bookingId, {
+    paymentStatus: payment_status,
+    downpayment: newDownpayment,
+    balance: total - newDownpayment,
+  });
+
   revalidatePath("/calendar");
   return { success: true };
 }
@@ -147,6 +164,10 @@ export async function deleteBooking(
     .eq("id", bookingId);
 
   if (error) return { error: error.message };
+
+  // Remove from Google Sheets (non-blocking)
+  deleteBookingFromSheet(bookingId);
+
   revalidatePath("/calendar");
   return { success: true };
 }
@@ -164,6 +185,10 @@ export async function confirmBooking(
     .eq("id", bookingId);
 
   if (error) return { error: error.message };
+
+  // Sync to Google Sheets (non-blocking)
+  updateBookingInSheet(bookingId, { bookingStatus: "confirmed" });
+
   revalidatePath("/calendar");
   return { success: true };
 }
@@ -195,6 +220,14 @@ export async function addLateFee(
     .eq("id", bookingId);
 
   if (error) return { error: error.message };
+
+  // Sync to Google Sheets (non-blocking)
+  updateBookingInSheet(bookingId, {
+    total: newTotal,
+    paymentStatus: payment_status,
+    balance: newTotal - Number(booking.downpayment_amount),
+  });
+
   revalidatePath("/calendar");
   revalidatePath("/payments");
   return { success: true };
@@ -255,5 +288,12 @@ export async function sendGalleryEmail(
     bookingToken: data.booking_token,
   });
   if ("error" in result) return { error: result.error ?? "Email send failed." };
+
+  // Update sheet with gallery link (non-blocking)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  updateBookingInSheet(bookingId, {
+    sessionGalleryUrl: `${appUrl}/my-booking/${data.booking_token}`,
+  });
+
   return { success: true };
 }

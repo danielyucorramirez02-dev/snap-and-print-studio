@@ -109,7 +109,7 @@ export async function createPublicBooking(input: {
       receipt_url: input.receiptUrl ?? null,
       created_by: null,
     })
-    .select("booking_token")
+    .select("id, booking_token")
     .single();
 
   if (error) return { error: error.message };
@@ -134,6 +134,7 @@ export async function createPublicBooking(input: {
 
   // Log to Google Sheets (non-blocking)
   logBookingToSheet({
+    bookingId: inserted.id as string,
     clientName: input.clientName,
     clientPhone: input.clientPhone,
     clientEmail: input.clientEmail,
