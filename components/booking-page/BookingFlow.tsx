@@ -220,6 +220,9 @@ export default function BookingFlow({ services }: BookingFlowProps) {
         downpaymentAmount: requiredDownpayment,
         addonNotes,
         receiptUrl: publicUrl,
+        celebrantName: sessionType === "milestone" ? celebrantName : undefined,
+        turningAge: sessionType === "milestone" ? turningAge : undefined,
+        theme: sessionType === "milestone" ? milestoneTheme : undefined,
       });
 
       if ("error" in res) { setServerError(res.error); return; }
@@ -590,8 +593,15 @@ export default function BookingFlow({ services }: BookingFlowProps) {
             </div>
             <div className="space-y-1.5">
               <label className="text-charcoal-300 text-sm">Theme <span className="text-red-400">*</span></label>
-              <input value={milestoneTheme} onChange={(e) => setMilestoneTheme(e.target.value)} placeholder="e.g. Fairy Garden, Dinosaur, Unicorn"
-                className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500" />
+              <select value={milestoneTheme} onChange={(e) => setMilestoneTheme(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm focus:outline-none focus:border-brand-500">
+                <option value="">— Select a theme —</option>
+                <option value="Car">🚗 Car</option>
+                <option value="Jungle">🌿 Jungle</option>
+                <option value="Police">👮 Police</option>
+                <option value="Pink Castle">🏰 Pink Castle</option>
+                <option value="Mermaid">🧜 Mermaid</option>
+              </select>
               {errors.milestoneTheme && <p className="text-red-400 text-xs">{errors.milestoneTheme}</p>}
             </div>
           </>

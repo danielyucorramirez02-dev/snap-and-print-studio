@@ -71,6 +71,9 @@ export async function createPublicBooking(input: {
   downpaymentAmount: number;
   addonNotes?: string;
   receiptUrl?: string;
+  celebrantName?: string;
+  turningAge?: string;
+  theme?: string;
 }): Promise<{ success: true; token: string; status: string } | { error: string }> {
   const supabase = await createClient();
 
@@ -148,6 +151,9 @@ export async function createPublicBooking(input: {
     bookingStatus,
     paymentStatus: payment_status,
     receiptUrl: input.receiptUrl,
+    celebrantName: input.celebrantName,
+    turningAge: input.turningAge,
+    theme: input.theme,
   });
 
   return { success: true, token, status: bookingStatus };

@@ -21,6 +21,7 @@ function getSheets() {
 // E: Booking Date  F: Booking Time  G: Package  H: Addons
 // I: Total  J: Downpayment  K: Balance  L: Booking Status
 // M: Payment Status  N: Downpayment Receipt  O: Booking ID  P: Session Gallery
+// Q: Celebrant  R: Turning Age  S: Theme
 
 async function findBookingRow(
   client: NonNullable<ReturnType<typeof getSheets>>,
@@ -56,6 +57,9 @@ export async function logBookingToSheet(data: {
   bookingStatus: string;
   paymentStatus: string;
   receiptUrl?: string | null;
+  celebrantName?: string;
+  turningAge?: string;
+  theme?: string;
 }) {
   const client = getSheets();
   if (!client) return;
@@ -69,14 +73,14 @@ export async function logBookingToSheet(data: {
     // Ensure new column headers exist (idempotent — same values written every time)
     await client.sheets.spreadsheets.values.update({
       spreadsheetId: client.sheetId,
-      range: "Bookings!O1:P1",
+      range: "Bookings!O1:S1",
       valueInputOption: "RAW",
-      requestBody: { values: [["Booking ID", "Session Gallery"]] },
+      requestBody: { values: [["Booking ID", "Session Gallery", "Celebrant", "Turning Age", "Theme"]] },
     });
 
     await client.sheets.spreadsheets.values.append({
       spreadsheetId: client.sheetId,
-      range: "Bookings!A:P",
+      range: "Bookings!A:S",
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [[
@@ -95,7 +99,10 @@ export async function logBookingToSheet(data: {
           data.paymentStatus,
           receiptCell,
           data.bookingId ?? "",
-          "",
+          "",                        // P: Session Gallery (filled later via sendGalleryEmail)
+          data.celebrantName ?? "",  // Q
+          data.turningAge ?? "",     // R
+          data.theme ?? "",          // S
         ]],
       },
     });
