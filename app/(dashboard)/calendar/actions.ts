@@ -45,9 +45,8 @@ export async function createBooking(
 
   if (error) return { error: error.message };
 
-  // Log to Google Sheets (non-blocking)
   const { data: service } = await supabase.from("services").select("name").eq("id", package_id).single();
-  logBookingToSheet({
+  await logBookingToSheet({
     bookingId: inserted?.id,
     clientName: client_name,
     clientPhone: client_phone,
@@ -94,8 +93,7 @@ export async function markBookingPaid(
 
   if (error) return { error: error.message };
 
-  // Sync to Google Sheets (non-blocking)
-  updateBookingInSheet(bookingId, {
+  await updateBookingInSheet(bookingId, {
     paymentStatus: "paid",
     downpayment: booking.total_amount,
     balance: 0,
@@ -139,8 +137,7 @@ export async function updatePaymentStatus(
 
   if (error) return { error: error.message };
 
-  // Sync to Google Sheets (non-blocking)
-  updateBookingInSheet(bookingId, {
+  await updateBookingInSheet(bookingId, {
     paymentStatus: payment_status,
     downpayment: newDownpayment,
     balance: total - newDownpayment,
@@ -165,8 +162,7 @@ export async function deleteBooking(
 
   if (error) return { error: error.message };
 
-  // Remove from Google Sheets (non-blocking)
-  deleteBookingFromSheet(bookingId);
+  await deleteBookingFromSheet(bookingId);
 
   revalidatePath("/calendar");
   return { success: true };
@@ -186,8 +182,7 @@ export async function confirmBooking(
 
   if (error) return { error: error.message };
 
-  // Sync to Google Sheets (non-blocking)
-  updateBookingInSheet(bookingId, { bookingStatus: "confirmed" });
+  await updateBookingInSheet(bookingId, { bookingStatus: "confirmed" });
 
   revalidatePath("/calendar");
   return { success: true };
@@ -221,8 +216,7 @@ export async function addLateFee(
 
   if (error) return { error: error.message };
 
-  // Sync to Google Sheets (non-blocking)
-  updateBookingInSheet(bookingId, {
+  await updateBookingInSheet(bookingId, {
     total: newTotal,
     paymentStatus: payment_status,
     balance: newTotal - Number(booking.downpayment_amount),
@@ -289,9 +283,8 @@ export async function sendGalleryEmail(
   });
   if ("error" in result) return { error: result.error ?? "Email send failed." };
 
-  // Update sheet with gallery link (non-blocking)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
-  updateBookingInSheet(bookingId, {
+  await updateBookingInSheet(bookingId, {
     sessionGalleryUrl: `${appUrl}/my-booking/${data.booking_token}`,
   });
 

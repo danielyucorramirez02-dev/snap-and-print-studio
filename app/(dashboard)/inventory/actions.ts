@@ -24,8 +24,7 @@ export async function createInventoryItem(
 
   if (error) return { error: error.message };
 
-  // Log new item to Google Sheets (non-blocking)
-  logInventoryToSheet({
+  await logInventoryToSheet({
     itemName: parsed.data.item_name,
     quantity: parsed.data.quantity,
     unit: parsed.data.unit,

@@ -135,8 +135,7 @@ export async function createPublicBooking(input: {
     });
   }
 
-  // Log to Google Sheets (non-blocking)
-  logBookingToSheet({
+  await logBookingToSheet({
     bookingId: inserted.id as string,
     clientName: input.clientName,
     clientPhone: input.clientPhone,
