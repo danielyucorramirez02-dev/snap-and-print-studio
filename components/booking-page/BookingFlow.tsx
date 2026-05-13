@@ -245,7 +245,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
   // ── Step: Session Type ────────────────────────────────────────────────────
   if (step === "type") return (
-    <div>
+    <div key="step-type" className="animate-fade-in-up">
       <StepIndicator index={0} total={5} />
       <h2 className="text-white font-semibold text-lg mb-1">What type of session?</h2>
       <p className="text-charcoal-400 text-sm mb-5">Choose the session that fits your occasion</p>
@@ -257,8 +257,8 @@ export default function BookingFlow({ services }: BookingFlowProps) {
             setSelectedAddonIds(new Set());
             setStep("package");
           }}
-            className="w-full flex items-center gap-4 p-4 rounded-xl bg-charcoal-900 border border-charcoal-700 hover:border-brand-500/50 hover:bg-brand-500/5 transition-colors text-left">
-            <span className="text-3xl">{t.emoji}</span>
+            className="group w-full flex items-center gap-4 p-4 rounded-xl bg-charcoal-900 border border-charcoal-700 hover:border-brand-500/60 hover:bg-brand-500/5 hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 ease-out text-left">
+            <span className="text-3xl transition-transform duration-200 group-hover:scale-110">{t.emoji}</span>
             <div>
               <p className="text-white font-medium">{t.label}</p>
               <p className="text-charcoal-400 text-sm">{t.desc}</p>
@@ -271,7 +271,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
   // ── Step: Package ─────────────────────────────────────────────────────────
   if (step === "package") return (
-    <div>
+    <div key="step-package" className="animate-fade-in-up">
       <button onClick={() => setStep("type")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
       </button>
@@ -294,7 +294,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
             setSlots([]);
             setStep(sessionType === "self-shoot" ? "additionals" : "datetime");
           }}
-            className="w-full p-4 rounded-xl bg-charcoal-900 border border-charcoal-700 hover:border-brand-500/50 hover:bg-brand-500/5 transition-colors text-left">
+            className="w-full p-4 rounded-xl bg-charcoal-900 border border-charcoal-700 hover:border-brand-500/60 hover:bg-brand-500/5 hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 ease-out text-left">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-white font-semibold">{s.name}</p>
@@ -323,7 +323,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
   // ── Step: Additionals (Self-Shoot only) ───────────────────────────────────
   if (step === "additionals") return (
-    <div>
+    <div key="step-additionals" className="animate-fade-in-up">
       <button onClick={() => setStep("package")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
       </button>
@@ -338,10 +338,10 @@ export default function BookingFlow({ services }: BookingFlowProps) {
           const checked = selectedAddonIds.has(addon.id);
           return (
             <label key={addon.id}
-              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all duration-200 active:scale-[0.99] ${
                 checked
-                  ? "bg-brand-500/10 border-brand-500/40"
-                  : "bg-charcoal-800 border-charcoal-700 hover:border-charcoal-600"
+                  ? "bg-brand-500/10 border-brand-500/40 ring-1 ring-brand-500/30 shadow-sm shadow-brand-500/20"
+                  : "bg-charcoal-800 border-charcoal-700 hover:border-brand-500/40 hover:bg-charcoal-800/80"
               }`}>
               <input
                 type="checkbox"
@@ -378,7 +378,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       </div>
 
       <button onClick={() => setStep("datetime")}
-        className="w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors">
+        className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98] transition-all duration-200 ease-out">
         Continue
       </button>
     </div>
@@ -386,7 +386,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
   // ── Step: Date & Time ─────────────────────────────────────────────────────
   if (step === "datetime") return (
-    <div>
+    <div key="step-datetime" className="animate-fade-in-up">
       <button onClick={() => setStep(sessionType === "self-shoot" ? "additionals" : "package")}
         className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
@@ -447,10 +447,10 @@ export default function BookingFlow({ services }: BookingFlowProps) {
                     <button key={id}
                       onClick={() => !allBooked && setHalfDay(id)}
                       disabled={allBooked}
-                      className={`w-full p-4 rounded-xl border text-left transition-colors ${
+                      className={`w-full p-4 rounded-xl border text-left transition-all duration-200 ease-out ${
                         allBooked
                           ? "bg-charcoal-900 border-charcoal-800 opacity-40 cursor-not-allowed"
-                          : "bg-charcoal-800 border-charcoal-700 hover:border-brand-500/50 hover:bg-brand-500/5"
+                          : "bg-charcoal-800 border-charcoal-700 hover:border-brand-500/60 hover:bg-brand-500/5 hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99]"
                       }`}
                     >
                       <p className={`font-medium text-sm ${allBooked ? "text-charcoal-500" : "text-white"}`}>
@@ -481,12 +481,12 @@ export default function BookingFlow({ services }: BookingFlowProps) {
                       <button key={slot}
                         onClick={() => !isBooked && setTime(slot)}
                         disabled={isBooked}
-                        className={`py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                        className={`py-2.5 rounded-lg border text-sm font-medium transition-all duration-200 active:scale-[0.97] ${
                           isBooked
                             ? "bg-charcoal-900 border-charcoal-800 text-charcoal-700 cursor-not-allowed line-through"
                             : time === slot
-                            ? "bg-brand-500/15 border-brand-500/40 text-brand-400"
-                            : "bg-charcoal-800 border-charcoal-700 text-charcoal-300 hover:border-brand-500/30 hover:text-white"
+                            ? "bg-brand-500/20 border-brand-500/60 text-brand-300 ring-2 ring-brand-500/30 shadow-md shadow-brand-500/20"
+                            : "bg-charcoal-800 border-charcoal-700 text-charcoal-300 hover:border-brand-500/40 hover:bg-brand-500/5 hover:text-white"
                         }`}
                       >
                         {formatSlotLabel(slot)}
@@ -535,10 +535,10 @@ export default function BookingFlow({ services }: BookingFlowProps) {
             <div className="grid grid-cols-3 gap-2">
               {slots.map((slot) => (
                 <button key={slot} onClick={() => setTime(slot)}
-                  className={`py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                  className={`py-2.5 rounded-lg border text-sm font-medium transition-all duration-200 active:scale-[0.97] ${
                     time === slot
-                      ? "bg-brand-500/15 border-brand-500/40 text-brand-400"
-                      : "bg-charcoal-800 border-charcoal-700 text-charcoal-300 hover:border-brand-500/30 hover:text-white"
+                      ? "bg-brand-500/20 border-brand-500/60 text-brand-300 ring-2 ring-brand-500/30 shadow-md shadow-brand-500/20"
+                      : "bg-charcoal-800 border-charcoal-700 text-charcoal-300 hover:border-brand-500/40 hover:bg-brand-500/5 hover:text-white"
                   }`}>
                   {formatSlotLabel(slot)}
                 </button>
@@ -548,7 +548,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
         </div>
       )}
       <button onClick={() => setStep("info")} disabled={!date || !time}
-        className="w-full mt-6 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        className="w-full mt-6 py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98] transition-all duration-200 ease-out disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100">
         Continue
       </button>
     </div>
@@ -556,7 +556,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
   // ── Step: Personal Info ───────────────────────────────────────────────────
   if (step === "info") return (
-    <div>
+    <div key="step-info" className="animate-fade-in-up">
       <button onClick={() => setStep("datetime")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
       </button>
@@ -659,7 +659,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
           <span><strong className="text-amber-400">Late policy:</strong> Arrivals 15 minutes or more past your scheduled time will incur a ₱50 late fee.</span>
         </div>
         <button onClick={() => { if (validateInfo()) setStep("payment"); }}
-          className="w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors">
+          className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98] transition-all duration-200 ease-out">
           Continue
         </button>
       </div>
@@ -668,7 +668,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
   // ── Step: Payment / GCash Downpayment ─────────────────────────────────────
   if (step === "payment") return (
-    <div>
+    <div key="step-payment" className="animate-fade-in-up">
       <button onClick={() => setStep("info")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
       </button>
@@ -756,9 +756,9 @@ export default function BookingFlow({ services }: BookingFlowProps) {
             </div>
           </div>
         ) : (
-          <label className="flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-dashed border-charcoal-700 hover:border-brand-500/50 hover:bg-brand-500/5 transition-colors cursor-pointer">
-            <Upload size={24} className="text-charcoal-500" />
-            <span className="text-charcoal-400 text-sm">Tap to upload screenshot</span>
+          <label className="group flex flex-col items-center gap-2 p-6 rounded-xl border-2 border-dashed border-charcoal-700 hover:border-brand-500/60 hover:bg-brand-500/5 hover:shadow-lg hover:shadow-brand-500/10 active:scale-[0.99] transition-all duration-200 cursor-pointer">
+            <Upload size={24} className="text-charcoal-500 transition-all duration-200 group-hover:text-brand-400 group-hover:scale-110" />
+            <span className="text-charcoal-400 text-sm group-hover:text-white transition-colors">Tap to upload screenshot</span>
             <span className="text-charcoal-600 text-xs">JPG, PNG · Max 5MB</span>
             <input
               type="file"
@@ -798,7 +798,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       <button
         onClick={handleSubmit}
         disabled={!downpaymentConfirmed || !receiptFile || isPending}
-        className="w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98] transition-all duration-200 ease-out disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100"
       >
         {isPending ? (
           <span className="flex items-center justify-center gap-2">
@@ -811,11 +811,11 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
   // ── Step: Success ─────────────────────────────────────────────────────────
   return (
-    <div className="text-center">
-      <div className="w-16 h-16 rounded-full bg-green-500/15 border border-green-500/25 flex items-center justify-center mx-auto mb-5">
-        <CheckCircle2 size={32} className="text-green-400" />
+    <div key="step-success" className="text-center animate-fade-in-up">
+      <div className="w-20 h-20 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-green-500/20 animate-scale-bounce">
+        <CheckCircle2 size={40} className="text-green-400" />
       </div>
-      <h2 className="text-white font-bold text-xl mb-2">
+      <h2 className="text-white font-bold text-2xl mb-2">
         {result?.status === "pending" ? "Request Submitted!" : "You're Booked! 🎉"}
       </h2>
       <p className="text-charcoal-400 text-sm mb-6 leading-relaxed">
@@ -877,7 +877,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
       <div className="space-y-3">
         <a href={bookingUrl}
-          className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors">
+          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98] transition-all duration-200 ease-out animate-soft-pulse">
           <CalendarDays size={16} />
           View My Booking Status
         </a>

@@ -46,14 +46,14 @@ export default async function MyBookingPage({ params }: { params: Promise<{ toke
     });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in-up">
       {/* Status badges */}
       <div className="flex gap-2 flex-wrap">
-        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${BOOKING_STYLES[booking.booking_status]}`}>
+        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border shadow-sm ${BOOKING_STYLES[booking.booking_status]}`}>
           {booking.booking_status === "confirmed" ? "✅ Confirmed" :
            booking.booking_status === "pending"   ? "⏳ Pending Confirmation" : "❌ Cancelled"}
         </span>
-        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${PAYMENT_STYLES[booking.payment_status]}`}>
+        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border shadow-sm ${PAYMENT_STYLES[booking.payment_status]}`}>
           {booking.payment_status === "paid" ? "💳 Fully Paid" :
            booking.payment_status === "partial" ? "💳 Partially Paid" : "💳 Payment Pending"}
         </span>
@@ -153,10 +153,10 @@ export default async function MyBookingPage({ params }: { params: Promise<{ toke
           </p>
           <div className="grid grid-cols-2 gap-2">
             {photos.map((url, i) => (
-              <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+              <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-lg">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt={`Photo ${i + 1}`}
-                  className="w-full aspect-square object-cover rounded-lg border border-charcoal-700 hover:opacity-90 transition-opacity" />
+                  className="w-full aspect-square object-cover border border-charcoal-700 hover:scale-105 hover:border-brand-500/40 transition-all duration-300 ease-out" />
               </a>
             ))}
           </div>
