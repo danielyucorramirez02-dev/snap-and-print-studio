@@ -84,3 +84,14 @@ export function getSelfShootSlots(
 export const MILESTONE_EARLY_SLOTS = ["08:00", "09:00", "10:00"] as const;
 export const MILESTONE_LATE_SLOTS  = ["14:00", "15:00", "16:00"] as const;
 export type MilestoneHalfDay = "early" | "late";
+
+// Reasons a date may have no bookable slots
+export type SlotAvailabilityReason = "open" | "closed-day" | "blocked" | "capped" | "no-slots";
+
+export function isDailyCapReached(
+  confirmedSelfShootsCount: number,
+  dailyCap: number | null | undefined
+): boolean {
+  if (dailyCap === null || dailyCap === undefined) return false;
+  return confirmedSelfShootsCount >= dailyCap;
+}

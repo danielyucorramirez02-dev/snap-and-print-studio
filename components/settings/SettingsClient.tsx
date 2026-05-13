@@ -1,17 +1,26 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updateProfile, changePassword } from "@/app/(dashboard)/settings/actions";
+import {
+  updateProfile,
+  changePassword,
+  addBlockedDate,
+  removeBlockedDate,
+  updateMaxSelfShootsPerDay,
+} from "@/app/(dashboard)/settings/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, AlertCircle, User, Lock, Info } from "lucide-react";
-import type { UserRole } from "@/types";
+import { CheckCircle2, AlertCircle, User, Lock, Info, CalendarX, Trash2, Plus } from "lucide-react";
+import { formatDate } from "@/lib/utils/formatters";
+import type { UserRole, BlockedDate } from "@/types";
 
 interface SettingsClientProps {
   fullName: string;
   email: string;
   role: UserRole;
+  blockedDates: BlockedDate[];
+  maxSelfShootsPerDay: number | null;
 }
 
 function SectionCard({ icon, title, children }: {
@@ -45,7 +54,13 @@ function FeedbackMessage({ type, message }: { type: "success" | "error"; message
   );
 }
 
-export default function SettingsClient({ fullName, email, role }: SettingsClientProps) {
+export default function SettingsClient({
+  fullName,
+  email,
+  role,
+  blockedDates,
+  maxSelfShootsPerDay,
+}: SettingsClientProps) {
   // Profile form
   const [name, setName] = useState(fullName);
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -56,6 +71,75 @@ export default function SettingsClient({ fullName, email, role }: SettingsClient
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [passwordPending, startPasswordTransition] = useTransition();
+
+  // Capacity / blocked dates
+  const today = new Date().toISOString().split("T")[0];
+  const [newBlockDate, setNewBlockDate] = useState("");
+  const [newBlockReason, setNewBlockReason] = useState("");
+  const [blockMsg, setBlockMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [blockPending, startBlockTransition] = useTransition();
+  const [removingDate, setRemovingDate] = useState<string | null>(null);
+  const [, startRemoveTransition] = useTransition();
+
+  const [capInput, setCapInput] = useState<string>(
+    maxSelfShootsPerDay === null ? "" : String(maxSelfShootsPerDay)
+  );
+  const [capMsg, setCapMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [capPending, startCapTransition] = useTransition();
+
+  const handleAddBlockedDate = () => {
+    setBlockMsg(null);
+    if (!newBlockDate) {
+      setBlockMsg({ type: "error", text: "Please choose a date." });
+      return;
+    }
+    startBlockTransition(async () => {
+      const result = await addBlockedDate(newBlockDate, newBlockReason);
+      if ("error" in result) {
+        setBlockMsg({ type: "error", text: result.error });
+        return;
+      }
+      setBlockMsg({ type: "success", text: "Date blocked." });
+      setNewBlockDate("");
+      setNewBlockReason("");
+    });
+  };
+
+  const handleRemoveBlockedDate = (date: string) => {
+    setBlockMsg(null);
+    setRemovingDate(date);
+    startRemoveTransition(async () => {
+      const result = await removeBlockedDate(date);
+      setRemovingDate(null);
+      if ("error" in result) {
+        setBlockMsg({ type: "error", text: result.error });
+      }
+    });
+  };
+
+  const handleCapSave = () => {
+    setCapMsg(null);
+    const trimmed = capInput.trim();
+    let value: number | null;
+    if (trimmed === "") {
+      value = null;
+    } else {
+      const parsed = Number(trimmed);
+      if (!Number.isInteger(parsed) || parsed < 1) {
+        setCapMsg({ type: "error", text: "Enter a whole number (1 or more), or leave empty for unlimited." });
+        return;
+      }
+      value = parsed;
+    }
+    startCapTransition(async () => {
+      const result = await updateMaxSelfShootsPerDay(value);
+      if ("error" in result) {
+        setCapMsg({ type: "error", text: result.error });
+        return;
+      }
+      setCapMsg({ type: "success", text: "Daily cap updated." });
+    });
+  };
 
   const handleProfileSave = () => {
     setProfileMsg(null);
@@ -160,6 +244,103 @@ export default function SettingsClient({ fullName, email, role }: SettingsClient
           >
             {passwordPending ? "Updating..." : "Change Password"}
           </Button>
+        </div>
+      </SectionCard>
+
+      {/* Capacity & Blocked Dates */}
+      <SectionCard icon={<CalendarX size={18} />} title="Capacity & Blocked Dates">
+        <div className="space-y-6">
+          {/* Daily cap */}
+          <div className="space-y-1.5">
+            <Label className="text-charcoal-300">Max self-shoot sessions per day</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={1}
+                value={capInput}
+                onChange={(e) => setCapInput(e.target.value)}
+                placeholder="Unlimited"
+                className="bg-charcoal-800 border-charcoal-700 text-white placeholder:text-charcoal-500 focus:border-brand-500 w-40"
+              />
+              <Button
+                onClick={handleCapSave}
+                disabled={capPending}
+                className="bg-brand-500 hover:bg-brand-600 text-white disabled:opacity-40"
+              >
+                {capPending ? "Saving..." : "Save Cap"}
+              </Button>
+            </div>
+            <p className="text-charcoal-600 text-xs">
+              Leave empty for no cap. Once the cap is hit on a day, that day shows as fully booked to customers.
+            </p>
+            {capMsg && <FeedbackMessage type={capMsg.type} message={capMsg.text} />}
+          </div>
+
+          {/* Add new blocked date */}
+          <div className="space-y-1.5 pt-4 border-t border-charcoal-800">
+            <Label className="text-charcoal-300">Block a specific date</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr_auto] gap-2">
+              <Input
+                type="date"
+                min={today}
+                value={newBlockDate}
+                onChange={(e) => setNewBlockDate(e.target.value)}
+                className="bg-charcoal-800 border-charcoal-700 text-white focus:border-brand-500"
+              />
+              <Input
+                type="text"
+                value={newBlockReason}
+                onChange={(e) => setNewBlockReason(e.target.value)}
+                placeholder="Reason (optional) — e.g. Editing day, Holiday"
+                className="bg-charcoal-800 border-charcoal-700 text-white placeholder:text-charcoal-500 focus:border-brand-500"
+              />
+              <Button
+                onClick={handleAddBlockedDate}
+                disabled={blockPending}
+                className="bg-brand-500 hover:bg-brand-600 text-white disabled:opacity-40"
+              >
+                <Plus size={14} className="mr-1" />
+                {blockPending ? "Adding..." : "Block"}
+              </Button>
+            </div>
+            <p className="text-charcoal-600 text-xs">
+              Existing bookings on a blocked date are kept. New bookings for that date are refused.
+            </p>
+            {blockMsg && <FeedbackMessage type={blockMsg.type} message={blockMsg.text} />}
+          </div>
+
+          {/* List of blocked dates */}
+          <div className="space-y-2 pt-4 border-t border-charcoal-800">
+            <Label className="text-charcoal-300">Upcoming blocked dates</Label>
+            {blockedDates.length === 0 ? (
+              <p className="text-charcoal-600 text-xs py-2">No upcoming blocked dates.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {blockedDates.map((bd) => (
+                  <div
+                    key={bd.date}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-charcoal-800 border border-charcoal-700"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium">{formatDate(bd.date)}</p>
+                      {bd.reason && (
+                        <p className="text-charcoal-500 text-xs truncate">{bd.reason}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleRemoveBlockedDate(bd.date)}
+                      disabled={removingDate === bd.date}
+                      className="text-charcoal-500 hover:text-red-400 transition-colors disabled:opacity-40"
+                      title="Remove block"
+                      aria-label={`Unblock ${bd.date}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </SectionCard>
 

@@ -5,6 +5,7 @@ import { getAvailableSlots, getBookedMilestoneSlots, createPublicBooking } from 
 import {
   MILESTONE_EARLY_SLOTS, MILESTONE_LATE_SLOTS,
   type MilestoneHalfDay,
+  type SlotAvailabilityReason,
   getStudioHoursForDate, formatSlotLabel,
 } from "@/lib/utils/slots";
 import { formatPeso } from "@/lib/utils/formatters";
@@ -64,8 +65,11 @@ export default function BookingFlow({ services }: BookingFlowProps) {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [slots, setSlots] = useState<string[]>([]);
+  const [slotsReason, setSlotsReason] = useState<SlotAvailabilityReason | null>(null);
+  const [blockedReason, setBlockedReason] = useState<string | null>(null);
   const [halfDay, setHalfDay] = useState<MilestoneHalfDay | null>(null);
   const [bookedMilestoneSlots, setBookedMilestoneSlots] = useState<string[]>([]);
+  const [milestoneDateClosed, setMilestoneDateClosed] = useState<{ closed: boolean; reason: string | null }>({ closed: false, reason: null });
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -123,15 +127,21 @@ export default function BookingFlow({ services }: BookingFlowProps) {
     setTime("");
     setHalfDay(null);
     setSlots([]);
+    setSlotsReason(null);
+    setBlockedReason(null);
     setBookedMilestoneSlots([]);
+    setMilestoneDateClosed({ closed: false, reason: null });
     if (!selectedService || !d) return;
     setLoadingSlots(true);
     if (isRequestBooking) {
-      const booked = await getBookedMilestoneSlots(d);
-      setBookedMilestoneSlots(booked);
+      const result = await getBookedMilestoneSlots(d);
+      setBookedMilestoneSlots(result.booked);
+      setMilestoneDateClosed({ closed: result.closed, reason: result.closedReason ?? null });
     } else {
-      const available = await getAvailableSlots(d, selectedService.id);
-      setSlots(available);
+      const result = await getAvailableSlots(d, selectedService.id);
+      setSlots(result.slots);
+      setSlotsReason(result.reason);
+      setBlockedReason(result.blockedReason ?? null);
     }
     setLoadingSlots(false);
   };
@@ -412,6 +422,17 @@ export default function BookingFlow({ services }: BookingFlowProps) {
               <div className="flex items-center gap-2 text-charcoal-400 text-sm py-4">
                 <Loader2 size={15} className="animate-spin" /> Checking availability…
               </div>
+            ) : milestoneDateClosed.closed ? (
+              <div className="flex items-start gap-2 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
+                <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Studio is closed on this date.</p>
+                  {milestoneDateClosed.reason && (
+                    <p className="text-red-300/80 text-xs mt-0.5">Reason: {milestoneDateClosed.reason}</p>
+                  )}
+                  <p className="text-red-300/80 text-xs mt-1">Please pick another date.</p>
+                </div>
+              </div>
             ) : !halfDay ? (
               /* Step 1: pick Early or Late */
               <div className="space-y-2">
@@ -480,10 +501,36 @@ export default function BookingFlow({ services }: BookingFlowProps) {
               <Loader2 size={15} className="animate-spin" /> Checking availability…
             </div>
           ) : slots.length === 0 ? (
-            <div className="text-center py-6">
-              <p className="text-charcoal-500 text-sm">No available slots for this day.</p>
-              <p className="text-charcoal-600 text-xs mt-1">Try picking a different date.</p>
-            </div>
+            slotsReason === "blocked" ? (
+              <div className="flex items-start gap-2 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
+                <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Studio is closed on this date.</p>
+                  {blockedReason && (
+                    <p className="text-red-300/80 text-xs mt-0.5">Reason: {blockedReason}</p>
+                  )}
+                  <p className="text-red-300/80 text-xs mt-1">Please pick another date.</p>
+                </div>
+              </div>
+            ) : slotsReason === "capped" ? (
+              <div className="flex items-start gap-2 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
+                <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Self-shoot sessions fully booked for this date.</p>
+                  <p className="text-amber-300/80 text-xs mt-1">Please pick another date.</p>
+                </div>
+              </div>
+            ) : slotsReason === "closed-day" ? (
+              <div className="text-center py-6">
+                <p className="text-charcoal-500 text-sm">Studio is closed on this day of the week.</p>
+                <p className="text-charcoal-600 text-xs mt-1">Try picking another date.</p>
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-charcoal-500 text-sm">No available slots for this day.</p>
+                <p className="text-charcoal-600 text-xs mt-1">Try picking a different date.</p>
+              </div>
+            )
           ) : (
             <div className="grid grid-cols-3 gap-2">
               {slots.map((slot) => (

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Settings } from "lucide-react";
-import type { UserRole } from "@/types";
+import type { UserRole, BlockedDate } from "@/types";
 import SettingsClient from "@/components/settings/SettingsClient";
 
 export default async function SettingsPage() {
@@ -17,6 +17,24 @@ export default async function SettingsPage() {
     .single();
 
   if (profile?.role !== "owner") redirect("/calendar");
+
+  const today = new Date().toISOString().split("T")[0];
+
+  const [{ data: blockedRows }, { data: settingsRow }] = await Promise.all([
+    supabase
+      .from("blocked_dates")
+      .select("date, reason, created_at, created_by")
+      .gte("date", today)
+      .order("date", { ascending: true }),
+    supabase
+      .from("studio_settings")
+      .select("max_self_shoots_per_day")
+      .eq("id", 1)
+      .maybeSingle(),
+  ]);
+
+  const blockedDates = (blockedRows ?? []) as BlockedDate[];
+  const maxSelfShootsPerDay = (settingsRow?.max_self_shoots_per_day as number | null) ?? null;
 
   return (
     <div>
@@ -34,6 +52,8 @@ export default async function SettingsPage() {
         fullName={profile?.full_name ?? ""}
         email={user.email ?? ""}
         role={(profile?.role ?? "owner") as UserRole}
+        blockedDates={blockedDates}
+        maxSelfShootsPerDay={maxSelfShootsPerDay}
       />
     </div>
   );
