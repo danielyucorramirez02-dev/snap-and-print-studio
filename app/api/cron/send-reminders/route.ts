@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
     });
 
     if ("error" in emailResult) {
-      errors.push({ id: b.id, error: emailResult.error });
+      errors.push({ id: b.id, error: emailResult.error ?? "Email send failed" });
       continue;
     }
 
