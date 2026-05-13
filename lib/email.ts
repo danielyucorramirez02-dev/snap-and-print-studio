@@ -119,6 +119,56 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
   return { success: true };
 }
 
+export interface DownpaymentConfirmedData {
+  clientName: string;
+  clientEmail: string;
+  bookingDate: string;
+  bookingTime: string;
+  serviceName: string;
+  downpaymentAmount: number;
+  balance: number;
+  bookingToken: string;
+}
+
+export async function sendDownpaymentConfirmed(data: DownpaymentConfirmedData) {
+  const resend = getResend();
+  if (!resend) return { error: "Email not configured. Add RESEND_API_KEY to .env.local." };
+
+  const bookingUrl = `${APP_URL}/my-booking/${data.bookingToken}`;
+
+  const body = `
+    <p style="color:#ccccdd;margin:0 0 20px;font-size:14px;line-height:1.6;">
+      Hi <strong style="color:#fff;">${data.clientName}</strong>!
+      We received your downpayment. Your booking is now <strong style="color:#22c55e;">confirmed</strong>. 🎉
+    </p>
+    <table style="width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+      ${detailRow("Date", formatDate(data.bookingDate))}
+      ${detailRow("Time", formatTime(data.bookingTime))}
+      ${detailRow("Package", data.serviceName)}
+      ${detailRow("Downpayment Received", formatPeso(data.downpaymentAmount))}
+      ${detailRow("Balance Due on Session", formatPeso(data.balance))}
+      ${detailRow("Status", "✅ Confirmed")}
+    </table>
+    <p style="color:#f59e0b;font-size:13px;background:#f59e0b15;border:1px solid #f59e0b30;padding:12px;border-radius:8px;">
+      ⏰ <strong>Late policy:</strong> Arrivals 15 minutes or more past your scheduled time will incur a ₱50 late fee.
+    </p>
+    ${ctaButton("View My Booking →", bookingUrl)}
+    <p style="color:#6b6b8a;font-size:12px;text-align:center;">
+      Or copy this link: <a href="${bookingUrl}" style="color:#f59e0b;">${bookingUrl}</a>
+    </p>
+  `;
+
+  const { error } = await resend.emails.send({
+    from: getFromEmail(),
+    to: data.clientEmail,
+    subject: `✅ Downpayment Confirmed — ${STUDIO_NAME}`,
+    html: baseTemplate("Downpayment Confirmed!", body),
+  });
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 export async function sendGalleryLink(data: {
   clientName: string;
   clientEmail: string;
