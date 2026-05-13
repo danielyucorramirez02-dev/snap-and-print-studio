@@ -17,8 +17,14 @@ interface BookingRow {
   service: { name: string } | { name: string }[] | null;
 }
 
-function manilaTimestampMs(dateStr: string, timeStr: string): number {
-  return new Date(`${dateStr}T${timeStr.substring(0, 8)}+08:00`).getTime();
+function tomorrowDateInManila(): string {
+  // Manila is UTC+8 (no DST). Shift current UTC time to Manila, add 1 day,
+  // then format as YYYY-MM-DD using UTC getters (we already pre-shifted).
+  const shifted = new Date(Date.now() + 8 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000);
+  const y = shifted.getUTCFullYear();
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(shifted.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export async function GET(req: NextRequest) {
@@ -47,32 +53,28 @@ export async function GET(req: NextRequest) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data: candidates, error: queryError } = await supabase
+  const tomorrow = tomorrowDateInManila();
+
+  const { data: due, error: queryError } = await supabase
     .from("bookings")
     .select(
       "id, client_name, client_email, booking_date, booking_time, booking_token, total_amount, downpayment_amount, service:services(name)"
     )
     .eq("booking_status", "confirmed")
-    .eq("reminder_sent", false);
+    .eq("reminder_sent", false)
+    .eq("booking_date", tomorrow);
 
   if (queryError) {
     return NextResponse.json({ error: queryError.message }, { status: 500 });
   }
 
-  const now = Date.now();
-  const windowStart = now + 23 * 60 * 60 * 1000;
-  const windowEnd = now + 25 * 60 * 60 * 1000;
-
-  const due = (candidates as BookingRow[] | null ?? []).filter((b) => {
-    const ts = manilaTimestampMs(b.booking_date, b.booking_time);
-    return ts >= windowStart && ts <= windowEnd;
-  });
+  const dueBookings = (due as BookingRow[] | null) ?? [];
 
   let sent = 0;
   let skippedNoEmail = 0;
   const errors: { id: string; error: string }[] = [];
 
-  for (const b of due) {
+  for (const b of dueBookings) {
     if (!b.client_email) {
       skippedNoEmail++;
       continue;
@@ -118,10 +120,8 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     timestamp: new Date().toISOString(),
-    windowStartUtc: new Date(windowStart).toISOString(),
-    windowEndUtc: new Date(windowEnd).toISOString(),
-    candidates: candidates?.length ?? 0,
-    due: due.length,
+    tomorrowManila: tomorrow,
+    due: dueBookings.length,
     sent,
     skippedNoEmail,
     errors,
