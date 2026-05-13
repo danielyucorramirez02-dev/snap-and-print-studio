@@ -169,6 +169,57 @@ export async function sendDownpaymentConfirmed(data: DownpaymentConfirmedData) {
   return { success: true };
 }
 
+export interface BookingReminderData {
+  clientName: string;
+  clientEmail: string;
+  bookingDate: string;
+  bookingTime: string;
+  serviceName: string;
+  balance: number;
+  bookingToken: string;
+}
+
+export async function sendBookingReminder(data: BookingReminderData) {
+  const resend = getResend();
+  if (!resend) return { error: "Email not configured. Add RESEND_API_KEY to .env.local." };
+
+  const bookingUrl = `${APP_URL}/my-booking/${data.bookingToken}`;
+
+  const body = `
+    <p style="color:#ccccdd;margin:0 0 20px;font-size:14px;line-height:1.6;">
+      Hi <strong style="color:#fff;">${data.clientName}</strong>!
+      Just a friendly reminder — your session at <strong>${STUDIO_NAME}</strong> is <strong style="color:#f59e0b;">tomorrow</strong>. We can't wait to see you!
+    </p>
+    <table style="width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+      ${detailRow("Date", formatDate(data.bookingDate))}
+      ${detailRow("Time", formatTime(data.bookingTime))}
+      ${detailRow("Package", data.serviceName)}
+      ${data.balance > 0 ? detailRow("Balance Due on Arrival", formatPeso(data.balance)) : detailRow("Status", "✅ Fully Paid")}
+    </table>
+    <p style="color:#f59e0b;font-size:13px;background:#f59e0b15;border:1px solid #f59e0b30;padding:12px;border-radius:8px;margin-bottom:12px;">
+      📍 <strong>Location:</strong> ${STUDIO_ADDRESS}<br>
+      Searchable on Waze &amp; Google Maps as &quot;${STUDIO_NAME}&quot;
+    </p>
+    <p style="color:#f59e0b;font-size:13px;background:#f59e0b15;border:1px solid #f59e0b30;padding:12px;border-radius:8px;">
+      ⏰ <strong>Late policy:</strong> Arrivals 15 minutes or more past your scheduled time will incur a ₱50 late fee.
+    </p>
+    ${ctaButton("View My Booking →", bookingUrl)}
+    <p style="color:#6b6b8a;font-size:12px;text-align:center;">
+      Need to reschedule? Reply to this email or message us on Facebook.
+    </p>
+  `;
+
+  const { error } = await resend.emails.send({
+    from: getFromEmail(),
+    to: data.clientEmail,
+    subject: `⏰ Reminder: Your session tomorrow — ${STUDIO_NAME}`,
+    html: baseTemplate("Your session is tomorrow!", body),
+  });
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 export async function sendGalleryLink(data: {
   clientName: string;
   clientEmail: string;
