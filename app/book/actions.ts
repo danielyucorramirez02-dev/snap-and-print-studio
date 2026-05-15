@@ -215,7 +215,9 @@ export async function createPublicBooking(input: {
       totalAmount: input.totalAmount,
       downpaymentAmount: input.downpaymentAmount,
       balance: input.totalAmount - input.downpaymentAmount,
-      bookingStatus,
+      // Booking-time email is always the "to be confirmed" variant; the
+      // confirmation email is sent later when staff approve the receipt.
+      bookingStatus: "pending",
       bookingToken: token,
     });
   }
