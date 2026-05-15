@@ -41,6 +41,7 @@ export default function BookingDrawer({ booking, onClose }: BookingDrawerProps) 
   const [serverError, setServerError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [locallyConfirmed, setLocallyConfirmed] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Reset input when a different booking is opened
@@ -49,6 +50,7 @@ export default function BookingDrawer({ booking, onClose }: BookingDrawerProps) 
     setServerError("");
     setSuccessMsg("");
     setConfirmCancel(false);
+    setLocallyConfirmed(false);
   }, [booking.id, booking.downpayment_amount]);
 
   useEffect(() => {
@@ -88,7 +90,8 @@ export default function BookingDrawer({ booking, onClose }: BookingDrawerProps) 
     startTransition(async () => {
       const result = await confirmBooking(booking.id);
       if ("error" in result) { setServerError(result.error); return; }
-      setSuccessMsg("Booking confirmed!");
+      setLocallyConfirmed(true);
+      setSuccessMsg("Booking confirmed — confirmation email sent to the client.");
     });
   };
 
@@ -205,6 +208,8 @@ export default function BookingDrawer({ booking, onClose }: BookingDrawerProps) 
     });
   };
 
+  const showPendingConfirm = booking.booking_status === "pending" && !locallyConfirmed;
+
   return (
     <>
       {/* Backdrop */}
@@ -230,7 +235,7 @@ export default function BookingDrawer({ booking, onClose }: BookingDrawerProps) 
         <div className="px-5 py-5 space-y-6 flex-1">
           {/* Booking status badges */}
           <div className="flex flex-wrap gap-2">
-            {booking.booking_status === "pending" && (
+            {showPendingConfirm && (
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/25">
                 ⏳ Pending Confirmation
               </span>
@@ -241,7 +246,7 @@ export default function BookingDrawer({ booking, onClose }: BookingDrawerProps) 
           </div>
 
           {/* Confirm pending booking */}
-          {booking.booking_status === "pending" && (
+          {showPendingConfirm && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2">
               <p className="text-amber-400 text-xs">This is a booking request from the client. Confirm to lock in the schedule.</p>
               <Button onClick={handleConfirm} disabled={isPending}
