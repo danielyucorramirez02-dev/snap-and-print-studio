@@ -12,9 +12,13 @@ export const STUDIO_HOURS: Record<number, { open: string; close: string } | null
   6: { open: "10:00", close: "19:00" }, // Saturday
 };
 
-export function isNoGapPackage(name: string): boolean {
+// Each self-shoot booking holds the slot for a fixed block so bookings stay
+// spaced out. First three packages (Solo Muna, Pakners, Trio) hold it for
+// 1 hour; the last two (Tropa Time, Family) need 1.5 hours.
+export function getSelfShootBlockMinutes(name: string): number {
   const n = name.toLowerCase();
-  return n.includes("solo") || n.includes("pakner");
+  if (n.includes("tropa") || n.includes("family")) return 90;
+  return 60;
 }
 
 export function isSelfShoot(category: string | null): boolean {
@@ -57,22 +61,22 @@ export function getSelfShootSlots(
 
   const openMin = toMinutes(hours.open);
   const closeMin = toMinutes(hours.close);
-  const newDuration = service.duration_minutes;
-  const newGap = isNoGapPackage(service.name) ? 0 : 30;
+  const newBlock = getSelfShootBlockMinutes(service.name);
 
   const slots: string[] = [];
 
-  for (let start = openMin; start + newDuration <= closeMin; start += 15) {
-    const newEnd = start + newDuration; // when the session itself ends
+  // Slots are offered every 15 minutes; a slot is unavailable when its
+  // booking block would overlap the block of an existing booking.
+  for (let start = openMin; start + newBlock <= closeMin; start += 15) {
+    const newEnd = start + newBlock;
 
     const conflict = confirmedBookings.some((b) => {
       const existingStart = toMinutes(b.booking_time);
-      const existingDuration = b.service?.duration_minutes ?? 60;
-      const existingGap = b.service && isNoGapPackage(b.service.name) ? 0 : 30;
-      const existingOccupiedEnd = existingStart + existingDuration + existingGap;
+      const existingEnd =
+        existingStart +
+        (b.service ? getSelfShootBlockMinutes(b.service.name) : 60);
 
-      // New session overlaps with existing occupied window
-      return start < existingOccupiedEnd && newEnd > existingStart;
+      return start < existingEnd && newEnd > existingStart;
     });
 
     if (!conflict) slots.push(toTimeString(start));
