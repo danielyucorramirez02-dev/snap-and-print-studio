@@ -1,14 +1,15 @@
 import type { Booking, Service } from "@/types";
 
-// Studio hours per day of week (0=Sun, 1=Mon, ... 6=Sat)
+// Online-bookable hours per day of week (0=Sun ... 6=Sat). Opens at 10am so
+// pre-booked sessions can be prepared ahead; physical walk-ins are 1pm-7pm.
 export const STUDIO_HOURS: Record<number, { open: string; close: string } | null> = {
-  0: { open: "13:00", close: "19:00" }, // Sunday
-  1: { open: "13:00", close: "19:00" }, // Monday
-  2: { open: "13:00", close: "19:00" }, // Tuesday
-  3: { open: "13:00", close: "19:00" }, // Wednesday
-  4: { open: "11:00", close: "16:00" }, // Thursday
-  5: { open: "13:00", close: "19:00" }, // Friday
-  6: { open: "13:00", close: "19:00" }, // Saturday
+  0: { open: "10:00", close: "19:00" }, // Sunday
+  1: { open: "10:00", close: "19:00" }, // Monday
+  2: { open: "10:00", close: "19:00" }, // Tuesday
+  3: { open: "10:00", close: "19:00" }, // Wednesday
+  4: { open: "10:00", close: "16:00" }, // Thursday
+  5: { open: "10:00", close: "19:00" }, // Friday
+  6: { open: "10:00", close: "19:00" }, // Saturday
 };
 
 export function isNoGapPackage(name: string): boolean {
