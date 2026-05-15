@@ -106,6 +106,7 @@ export async function approveDownpaymentReceipt(
     .update({
       downpayment_paid: true,
       payment_status,
+      booking_status: "confirmed",
     })
     .eq("id", bookingId);
 

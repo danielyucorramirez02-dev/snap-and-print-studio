@@ -74,21 +74,22 @@ export async function getAvailableSlots(
     return { slots: [], reason: "blocked", blockedReason: block.reason };
   }
 
+  // Pending bookings also hold their slot — staff has not rejected them yet.
   const { data: bookings } = await supabase
     .from("bookings")
     .select("*, service:services(*)")
     .eq("booking_date", dateStr)
-    .eq("booking_status", "confirmed")
+    .in("booking_status", ["pending", "confirmed"])
     .eq("service.category", "self-shoot");
 
-  const confirmed = (bookings ?? []) as Booking[];
+  const heldBookings = (bookings ?? []) as Booking[];
 
   const cap = await fetchSelfShootCap(supabase);
-  if (isDailyCapReached(confirmed.length, cap)) {
+  if (isDailyCapReached(heldBookings.length, cap)) {
     return { slots: [], reason: "capped" };
   }
 
-  const slots = getSelfShootSlots(dateStr, service, confirmed);
+  const slots = getSelfShootSlots(dateStr, service, heldBookings);
   if (slots.length === 0) return { slots: [], reason: "no-slots" };
   return { slots, reason: "open" };
 }
@@ -158,7 +159,7 @@ export async function createPublicBooking(input: {
       .from("bookings")
       .select("id, service:services(category)")
       .eq("booking_date", input.date)
-      .eq("booking_status", "confirmed");
+      .in("booking_status", ["pending", "confirmed"]);
 
     const selfShootCount = (sameDayBookings ?? []).filter((b) => {
       const svc = Array.isArray(b.service) ? b.service[0] : b.service;
@@ -171,8 +172,9 @@ export async function createPublicBooking(input: {
     }
   }
 
-  const isRequest = service.category === "milestone" || service.category === "coverage";
-  const bookingStatus = isRequest ? "pending" : "confirmed";
+  // All public bookings start pending. Staff confirms after verifying the
+  // GCash receipt (self-shoot) or the requested schedule (milestone/coverage).
+  const bookingStatus = "pending";
 
   const payment_status =
     input.downpaymentAmount >= input.totalAmount ? "paid"
