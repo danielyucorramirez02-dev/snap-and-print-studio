@@ -134,10 +134,13 @@ export default function PhotoToolClient() {
     try { await document.fonts.load(`700 100px ${FONT_FAMILY}`); } catch { /* fall back */ }
 
     // Frame orientation follows the first photo: landscape -> 4:3, portrait -> 3:4.
+    // High render resolution so the exported PNG stays crisp after Facebook's
+    // re-compression (FB keeps photos sharp up to ~2048px on the long side;
+    // we render well above that and let FB downscale from a high-res source).
     const first = images[0].el;
     const landscape = first.width >= first.height;
-    const pw = landscape ? 1200 : 900;
-    const ph = landscape ? 900 : 1200;
+    const pw = landscape ? 2400 : 1800;
+    const ph = landscape ? 1800 : 2400;
 
     const margin = Math.round(pw * 0.05);
     const bottomH = Math.round(pw * 0.18);
@@ -148,6 +151,10 @@ export default function PhotoToolClient() {
     canvas.height = H;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    // High-quality resampling when scaling the source photos down.
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
     // White instant-film card.
     ctx.fillStyle = "#ffffff";
