@@ -6,7 +6,7 @@ import {
   MILESTONE_EARLY_SLOTS, MILESTONE_LATE_SLOTS,
   type MilestoneHalfDay,
   type SlotAvailabilityReason,
-  getStudioHoursForDate, formatSlotLabel,
+  getStudioHoursForDate, formatSlotLabel, getSelfShootBlockMinutes,
 } from "@/lib/utils/slots";
 import { formatPeso } from "@/lib/utils/formatters";
 import { createClient } from "@/lib/supabase/client";
@@ -31,7 +31,9 @@ const STEPS_OTHER: Step[]      = ["type", "package", "datetime", "info", "paymen
 const GCASH_NUMBER = "09623028470";
 const GCASH_NAME   = "Daniel R.";
 
-const today = new Date().toISOString().split("T")[0];
+// Manila calendar date — the studio and its customers are in PH (UTC+8).
+// Using UTC here could be off by a day near midnight Manila time.
+const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
 
 function StepIndicator({ index, total }: { index: number; total: number }) {
   if (index < 0) return null;
@@ -149,7 +151,9 @@ export default function BookingFlow({ services }: BookingFlowProps) {
   const validateInfo = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Name is required";
+    const cleanPhone = phone.replace(/[\s-]/g, "");
     if (!phone.trim()) e.phone = "Phone is required";
+    else if (!/^(09\d{9}|\+639\d{9})$/.test(cleanPhone)) e.phone = "Enter a valid PH mobile number (e.g. 09171234567)";
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Enter a valid email";
     if (sessionType === "milestone") {
       if (!celebrantName.trim()) e.celebrantName = "Celebrant name is required";
@@ -246,7 +250,9 @@ export default function BookingFlow({ services }: BookingFlowProps) {
   // ── Step: Session Type ────────────────────────────────────────────────────
   if (step === "type") return (
     <div key="step-type" className="animate-fade-in-up">
-      <StepIndicator index={0} total={5} />
+      {/* Flow length is unknown until the type is picked; show the longest
+          (self-shoot) so the bar never grows mid-flow. */}
+      <StepIndicator index={0} total={STEPS_SELF_SHOOT.length} />
       <h2 className="text-white font-semibold text-lg mb-1">What type of session?</h2>
       <p className="text-charcoal-400 text-sm mb-5">Choose the session that fits your occasion</p>
       <div className="space-y-3">
@@ -397,6 +403,15 @@ export default function BookingFlow({ services }: BookingFlowProps) {
         <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm mb-4">
           <AlertCircle size={15} className="shrink-0 mt-0.5" />
           This is a booking <strong>request</strong>. We&apos;ll confirm your preferred schedule after reviewing availability.
+        </div>
+      )}
+      {sessionType === "self-shoot" && selectedService && (
+        <div className="flex items-start gap-2 text-xs text-charcoal-500 mb-4">
+          <Clock size={13} className="shrink-0 mt-0.5" />
+          <span>
+            Your <strong className="text-charcoal-300">{selectedService.name}</strong> session reserves a{" "}
+            {getSelfShootBlockMinutes(selectedService.name) === 90 ? "1.5-hour" : "1-hour"} slot.
+          </span>
         </div>
       )}
       {studioHours && (
