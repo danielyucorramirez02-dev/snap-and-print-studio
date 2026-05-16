@@ -99,6 +99,22 @@ function layout(n: number, x: number, y: number, w: number, h: number, gap: numb
   ];
 }
 
+// The studio logo, stamped onto the bottom strip when available. Loaded once
+// and cached; resolves to null if /public/instax-logo.png has not been added
+// yet — in that case the frame falls back to the calligraphy studio name.
+const LOGO_SRC = "/instax-logo.png";
+let logoPromise: Promise<HTMLImageElement | null> | null = null;
+function loadStudioLogo(): Promise<HTMLImageElement | null> {
+  if (logoPromise) return logoPromise;
+  logoPromise = new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img.naturalWidth > 0 ? img : null);
+    img.onerror = () => resolve(null);
+    img.src = LOGO_SRC;
+  });
+  return logoPromise;
+}
+
 // Render one Instax frame (single photo or a 2-4 photo collage) to a PNG
 // data URL. Renders off-screen at high resolution so the export stays crisp
 // after Facebook's re-compression.
@@ -138,20 +154,38 @@ async function renderFrame(photos: LoadedImage[]): Promise<string> {
     if (rects[i]) drawCover(ctx, p.el, rects[i]);
   });
 
-  // Studio name — small, straight (0°) calligraphy in the bottom strip,
-  // shrunk to fit. Kept modest so it reads like a real Instax signature.
-  let fontSize = Math.round(bottomH * 0.34);
-  ctx.font = `700 ${fontSize}px ${FONT_FAMILY}`;
-  const maxTextW = W - margin * 2;
-  const textW = ctx.measureText(STUDIO_NAME).width;
-  if (textW > maxTextW) {
-    fontSize = Math.floor(fontSize * (maxTextW / textW));
+  // Bottom strip — the studio logo if it has been added, otherwise the
+  // calligraphy studio name as a fallback.
+  const stripCY = margin + ph + bottomH / 2;
+  const logo = await loadStudioLogo();
+  if (logo) {
+    // Draw the logo with a "multiply" blend so its light/off-white background
+    // melts into the white card — only the dark logo art shows through.
+    const maxLogoW = (W - margin * 2) * 0.55;
+    const maxLogoH = bottomH * 0.64;
+    const scale = Math.min(maxLogoW / logo.naturalWidth, maxLogoH / logo.naturalHeight);
+    const lw = logo.naturalWidth * scale;
+    const lh = logo.naturalHeight * scale;
+    ctx.save();
+    ctx.globalCompositeOperation = "multiply";
+    ctx.drawImage(logo, (W - lw) / 2, stripCY - lh / 2, lw, lh);
+    ctx.restore();
+  } else {
+    // Studio name — small, straight (0°) calligraphy, shrunk to fit. Kept
+    // modest so it reads like a real Instax signature.
+    let fontSize = Math.round(bottomH * 0.34);
     ctx.font = `700 ${fontSize}px ${FONT_FAMILY}`;
+    const maxTextW = W - margin * 2;
+    const textW = ctx.measureText(STUDIO_NAME).width;
+    if (textW > maxTextW) {
+      fontSize = Math.floor(fontSize * (maxTextW / textW));
+      ctx.font = `700 ${fontSize}px ${FONT_FAMILY}`;
+    }
+    ctx.fillStyle = "#3a3a3a";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(STUDIO_NAME, W / 2, stripCY);
   }
-  ctx.fillStyle = "#3a3a3a";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(STUDIO_NAME, W / 2, margin + ph + bottomH / 2);
 
   return canvas.toDataURL("image/png");
 }
