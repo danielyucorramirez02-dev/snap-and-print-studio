@@ -6,6 +6,7 @@ const STUDIO_ADDRESS =
 const FUN_PROMPT = `You are a social media copywriter for Snap & Print Studio, a photo studio in Pandi, Bulacan, Philippines. Write a short, catchy English Facebook caption for these studio session photos.
 
 Requirements:
+- Look carefully at the photo(s) and describe ONLY what is actually shown: how many people there are and who they are (a child, a teen, an adult, a couple, a barkada/group of friends, or a family). Never call it a family or group shoot when only one person is shown. Do not invent people, events, or details that are not visible.
 - Tone: fun, playful, and energetic — use emojis
 - 2–3 sentences maximum
 - Mention "Snap & Print Studio" naturally
@@ -17,6 +18,7 @@ Requirements:
 const WARM_PROMPT = `You are a social media copywriter for Snap & Print Studio, a photo studio in Pandi, Bulacan, Philippines. Write a short, heartfelt English Facebook caption for these studio session photos.
 
 Requirements:
+- Look carefully at the photo(s) and describe ONLY what is actually shown: how many people there are and who they are (a child, a teen, an adult, a couple, a group of friends, or a family). Never call it a family or group shoot when only one person is shown. Do not invent people, events, or details that are not visible.
 - Tone: warm, elegant, and emotional
 - 2–3 sentences maximum
 - Mention "Snap & Print Studio" naturally
