@@ -3,29 +3,38 @@
 const STUDIO_ADDRESS =
   'Phase 5, Block 22, Lot 37 Pandi Residence 1, Mapulang Lupa, Pandi Bulacan (also searchable on Waze/Google Maps as "Snap & Print Studio")';
 
-const FUN_PROMPT = `You are a social media copywriter for Snap & Print Studio, a photo studio in Pandi, Bulacan, Philippines. Write a short, catchy English Facebook caption for these studio session photos.
+// Shared voice — modern Gen Z / Gen Alpha, NOT a polished millennial brand voice.
+const CAPTION_STYLE = `Voice — write like a real Gen Z / Gen Alpha person posting in 2026, NOT like a millennial brand account:
+- Casual and lowercase-leaning. It should read like a person, not an ad.
+- Short and punchy — 1 to 2 lines before the hashtags. No long paragraphs.
+- Drop current internet slang naturally where it fits (e.g. "slay", "ate", "it's giving ___", "main character", "the way ___", "no bc ___", "lowkey", "fr", "core", "understood the assignment"). Keep it effortless — never forced or cringe, and don't pile it on.
+- Light, natural Taglish is good (this is a Filipino studio) — a few Tagalog words mixed in, not a full translation.
+- Barely any emojis: 0 to 2 max, used casually, never as decoration.
+- No hype punctuation, no "Book your slot today!!!" energy. Keep the call-to-action chill and short, like "dm us to book" or "book na".
+- 3 to 5 lowercase hashtags only.
+- Hard avoid these millennial tells: "Look at this cutie!", "Bring out your ___ side", stacked emojis like 🥰✨📸, and overly polished marketing copy.`;
 
-Requirements:
-- Look carefully at the photo(s) and describe ONLY what is actually shown: how many people there are and who they are (a child, a teen, an adult, a couple, a barkada/group of friends, or a family). Never call it a family or group shoot when only one person is shown. Do not invent people, events, or details that are not visible.
-- Tone: fun, playful, and energetic — use emojis
-- 2–3 sentences maximum
-- Mention "Snap & Print Studio" naturally
-- Include a call-to-action to book or send a DM
-- Include the studio address: ${STUDIO_ADDRESS}
-- End with 6–8 relevant photography and lifestyle hashtags
-- Write in English only`;
+const PHOTO_GROUNDING = `Look carefully at the photo(s) and describe ONLY what is actually shown: how many people there are and who they are (a child, a teen, an adult, a couple, a barkada, or a family). Never call it a family or group shoot when only one person is shown. Do not invent people, events, or details that are not visible.`;
 
-const WARM_PROMPT = `You are a social media copywriter for Snap & Print Studio, a photo studio in Pandi, Bulacan, Philippines. Write a short, heartfelt English Facebook caption for these studio session photos.
+const FUN_PROMPT = `You run the Facebook page for Snap & Print Studio, a photo studio in Pandi, Bulacan, Philippines. Write a Facebook caption for these studio session photos.
 
-Requirements:
-- Look carefully at the photo(s) and describe ONLY what is actually shown: how many people there are and who they are (a child, a teen, an adult, a couple, a group of friends, or a family). Never call it a family or group shoot when only one person is shown. Do not invent people, events, or details that are not visible.
-- Tone: warm, elegant, and emotional
-- 2–3 sentences maximum
-- Mention "Snap & Print Studio" naturally
-- Include a call-to-action to book a session
-- Include the studio address: ${STUDIO_ADDRESS}
-- End with 6–8 relevant photography hashtags
-- Write in English only`;
+${CAPTION_STYLE}
+
+Also:
+- ${PHOTO_GROUNDING}
+- Energy: fun, playful, a little chaotic-cute.
+- Mention "Snap & Print Studio" once, naturally.
+- Add the studio address as one short line: ${STUDIO_ADDRESS}`;
+
+const WARM_PROMPT = `You run the Facebook page for Snap & Print Studio, a photo studio in Pandi, Bulacan, Philippines. Write a Facebook caption for these studio session photos.
+
+${CAPTION_STYLE}
+
+Also:
+- ${PHOTO_GROUNDING}
+- Energy: soft, warm, a little emotional — still modern and casual, just gentler. Go easier on the slang here.
+- Mention "Snap & Print Studio" once, naturally.
+- Add the studio address as one short line: ${STUDIO_ADDRESS}`;
 
 // Gemini 2.5 Flash — multimodal: it reads the photos and writes the caption.
 const GEMINI_MODEL = "gemini-2.5-flash";
