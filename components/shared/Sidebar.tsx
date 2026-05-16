@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import StudioLogo from "@/components/shared/StudioLogo";
-import { X, CalendarDays, CreditCard, Package, BarChart3, Images, Receipt, Layers, Settings, Sparkles, PlusCircle } from "lucide-react";
+import { X, LayoutDashboard, CalendarDays, CreditCard, Package, BarChart3, Images, Receipt, Layers, Settings, Sparkles, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
 const navItems = [
+  { href: "/",            label: "Dashboard",           icon: LayoutDashboard, roles: ["owner", "staff"] as UserRole[] },
   { href: "/new-booking", label: "New Booking",        icon: PlusCircle,   roles: ["owner", "staff"] as UserRole[] },
   { href: "/calendar",    label: "Calendar",            icon: CalendarDays, roles: ["owner", "staff"] as UserRole[] },
   { href: "/payments",    label: "Payments",            icon: CreditCard,   roles: ["owner", "staff"] as UserRole[] },
@@ -67,7 +68,7 @@ export default function Sidebar({ userRole, isOpen = false, onClose }: SidebarPr
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {visibleItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname.startsWith(item.href);
+            const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
