@@ -52,9 +52,8 @@ export async function generateCaption(
 
   try {
     const response = await groq.chat.completions.create({
-      // Llama 4 Maverick — Groq's stronger free multimodal model; writes
-      // tighter, more natural captions than Scout while still reading photos.
-      model: "meta-llama/llama-4-maverick-17b-128e-instruct",
+      // Llama 4 Scout — Groq's free multimodal model that reads the photos.
+      model: "meta-llama/llama-4-scout-17b-16e-instruct",
       messages: [
         {
           role: "user",
