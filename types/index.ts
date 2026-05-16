@@ -77,6 +77,19 @@ export interface InventoryItem {
   created_at: string;
 }
 
+export interface BlockedDate {
+  date: string;
+  reason: string | null;
+  created_at: string;
+  created_by: string | null;
+}
+
+export interface StudioSettings {
+  id: number;
+  max_self_shoots_per_day: number | null;
+  updated_at: string;
+}
+
 export interface Expense {
   id: string;
   category: ExpenseCategory;

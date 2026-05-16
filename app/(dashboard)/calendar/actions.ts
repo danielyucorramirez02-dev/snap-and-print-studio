@@ -187,6 +187,14 @@ export async function confirmBooking(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated." };
 
+  const { data: booking, error: fetchError } = await supabase
+    .from("bookings")
+    .select("*, service:services(name)")
+    .eq("id", bookingId)
+    .single();
+
+  if (fetchError || !booking) return { error: "Booking not found." };
+
   const { error } = await supabase
     .from("bookings")
     .update({ booking_status: "confirmed" })
@@ -195,6 +203,23 @@ export async function confirmBooking(
   if (error) return { error: error.message };
 
   await updateBookingInSheet(bookingId, { bookingStatus: "confirmed" });
+
+  // Notify the client that their booking is now confirmed. A missing email or
+  // a send failure must not block the confirmation itself.
+  if (booking.client_email) {
+    await sendBookingConfirmation({
+      clientName: booking.client_name,
+      clientEmail: booking.client_email,
+      bookingDate: booking.booking_date,
+      bookingTime: booking.booking_time,
+      serviceName: booking.service?.name ?? "—",
+      totalAmount: booking.total_amount,
+      downpaymentAmount: booking.downpayment_amount,
+      balance: booking.balance,
+      bookingStatus: "confirmed",
+      bookingToken: booking.booking_token,
+    });
+  }
 
   revalidatePath("/calendar");
   return { success: true };

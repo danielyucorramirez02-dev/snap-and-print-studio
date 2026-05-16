@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { formatDate, formatTime, formatPeso } from "@/lib/utils/formatters";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,8 +11,13 @@ import {
   Smartphone,
   Building2,
   Search,
+  Check,
+  X,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import PaymentModal from "@/components/payments/PaymentModal";
+import { approveDownpaymentReceipt } from "@/app/(dashboard)/payments/actions";
 import type { Booking, PaymentHistory, UserRole, PaymentStatus, PaymentMethod } from "@/types";
 
 interface PaymentsClientProps {
@@ -54,15 +59,39 @@ interface BookingRowProps {
   booking: Booking;
   payments: PaymentHistory[];
   onAddPayment: (b: Booking) => void;
+  onViewReceipt: (url: string) => void;
+  onApproveReceipt: (b: Booking) => void;
+  approvingId: string | null;
 }
 
-function BookingRow({ booking, payments, onAddPayment }: BookingRowProps) {
+function BookingRow({ booking, payments, onAddPayment, onViewReceipt, onApproveReceipt, approvingId }: BookingRowProps) {
   const [expanded, setExpanded] = useState(false);
+  const hasPendingReceipt =
+    !!booking.receipt_url && !booking.downpayment_paid && booking.payment_status !== "paid";
+  const isApproving = approvingId === booking.id;
 
   return (
     <div className="border border-charcoal-800 rounded-xl overflow-hidden">
       {/* Main row */}
       <div className="flex items-center gap-4 px-4 py-3 bg-charcoal-900 hover:bg-charcoal-800/50 transition-colors">
+        {/* Receipt thumbnail */}
+        {hasPendingReceipt && booking.receipt_url && (
+          <button
+            type="button"
+            onClick={() => onViewReceipt(booking.receipt_url as string)}
+            title="View uploaded GCash receipt"
+            className="shrink-0 relative h-10 w-10 rounded-md overflow-hidden border border-amber-500/40 hover:border-amber-400 transition-colors"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={booking.receipt_url}
+              alt="GCash receipt"
+              className="h-full w-full object-cover"
+            />
+            <span className="absolute inset-0 ring-2 ring-amber-400/0 hover:ring-amber-400/60 transition" />
+          </button>
+        )}
+
         {/* Client + date */}
         <div className="flex-1 min-w-0">
           <p className="text-white font-medium text-sm truncate">{booking.client_name}</p>
@@ -97,6 +126,22 @@ function BookingRow({ booking, payments, onAddPayment }: BookingRowProps) {
           <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_STYLES[booking.payment_status]}`}>
             {STATUS_LABELS[booking.payment_status]}
           </span>
+
+          {hasPendingReceipt && (
+            <Button
+              onClick={() => onApproveReceipt(booking)}
+              disabled={isApproving}
+              title="Approve uploaded GCash receipt"
+              className="h-7 px-2.5 text-xs bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+            >
+              {isApproving ? (
+                <Loader2 size={12} className="mr-1 animate-spin" />
+              ) : (
+                <Check size={12} className="mr-1" />
+              )}
+              Approve
+            </Button>
+          )}
 
           {booking.payment_status !== "paid" && (
             <Button
@@ -158,6 +203,23 @@ export default function PaymentsClient({
   const [filter, setFilter] = useState<"all" | PaymentStatus>("all");
   const [search, setSearch] = useState("");
   const [activeBooking, setActiveBooking] = useState<Booking | undefined>(undefined);
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approveError, setApproveError] = useState<string | null>(null);
+  const [, startApprove] = useTransition();
+
+  const handleApproveReceipt = (booking: Booking) => {
+    setApproveError(null);
+    setApprovingId(booking.id);
+    startApprove(async () => {
+      const result = await approveDownpaymentReceipt(booking.id);
+      setApprovingId(null);
+      if ("error" in result) {
+        setApproveError(result.error);
+        return;
+      }
+    });
+  };
 
   // Group payments by booking_id
   const paymentsByBooking = useMemo(() => {
@@ -244,6 +306,9 @@ export default function PaymentsClient({
               booking={booking}
               payments={paymentsByBooking.get(booking.id) ?? []}
               onAddPayment={setActiveBooking}
+              onViewReceipt={(url) => setViewingReceipt(url)}
+              onApproveReceipt={handleApproveReceipt}
+              approvingId={approvingId}
             />
           ))
         )}
@@ -255,6 +320,47 @@ export default function PaymentsClient({
           booking={activeBooking}
           onClose={() => setActiveBooking(undefined)}
         />
+      )}
+
+      {/* Approve error toast */}
+      {approveError && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm flex items-start gap-2 p-3 rounded-lg bg-red-500/15 border border-red-500/30 text-red-300 text-sm shadow-xl">
+          <AlertCircle size={15} className="shrink-0 mt-0.5" />
+          <div className="flex-1">{approveError}</div>
+          <button
+            onClick={() => setApproveError(null)}
+            className="text-red-300 hover:text-white transition-colors"
+            aria-label="Dismiss"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
+      {/* Receipt viewer */}
+      {viewingReceipt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setViewingReceipt(null); }}
+        >
+          <div className="relative max-w-2xl w-full">
+            <button
+              type="button"
+              onClick={() => setViewingReceipt(null)}
+              className="absolute -top-10 right-0 text-white/80 hover:text-white transition-colors flex items-center gap-1 text-sm"
+              aria-label="Close receipt"
+            >
+              <X size={18} />
+              Close
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={viewingReceipt}
+              alt="GCash receipt"
+              className="w-full h-auto rounded-xl border border-charcoal-700 shadow-2xl bg-charcoal-900"
+            />
+          </div>
+        </div>
       )}
     </>
   );

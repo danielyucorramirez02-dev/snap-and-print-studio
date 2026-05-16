@@ -4,5 +4,9 @@ import BookingFlow from "@/components/booking-page/BookingFlow";
 export default async function BookPage() {
   const services = await getServicesForBooking();
 
-  return <BookingFlow services={services} />;
+  return (
+    <div className="camera-cursor">
+      <BookingFlow services={services} />
+    </div>
+  );
 }

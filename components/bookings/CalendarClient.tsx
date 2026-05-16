@@ -13,17 +13,18 @@ import {
   addMonths,
   subMonths,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CalendarX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatTime } from "@/lib/utils/formatters";
 import BookingModal from "@/components/bookings/BookingModal";
 import BookingDrawer from "@/components/bookings/BookingDrawer";
-import type { Booking, Service, UserRole, PaymentStatus } from "@/types";
+import type { Booking, Service, UserRole, PaymentStatus, BlockedDate } from "@/types";
 
 interface CalendarClientProps {
   bookings: Booking[];
   services: Service[];
   userRole: UserRole;
+  blockedDates: BlockedDate[];
 }
 
 const STATUS_CHIP: Record<PaymentStatus, string> = {
@@ -62,30 +63,49 @@ interface DayCellProps {
   bookings: Booking[];
   isCurrentMonth: boolean;
   isTodayDate: boolean;
+  blockedReason: string | null | undefined;
+  isBlocked: boolean;
   onBookingClick: (b: Booking) => void;
 }
 
-function DayCell({ day, bookings, isCurrentMonth, isTodayDate, onBookingClick }: DayCellProps) {
+function DayCell({ day, bookings, isCurrentMonth, isTodayDate, blockedReason, isBlocked, onBookingClick }: DayCellProps) {
   const visible = bookings.slice(0, MAX_CHIPS);
   const overflow = bookings.length - MAX_CHIPS;
 
+  const baseBg = isCurrentMonth ? "bg-charcoal-900" : "bg-charcoal-950";
+  const blockedBg = isBlocked ? "bg-red-500/10" : "";
+
   return (
     <div
-      className={`min-h-[100px] border-r border-b border-charcoal-800 p-1.5 ${
-        isCurrentMonth ? "bg-charcoal-900" : "bg-charcoal-950"
-      }`}
+      className={`relative min-h-[100px] border-r border-b border-charcoal-800 p-1.5 ${baseBg} ${blockedBg}`}
     >
-      <span
-        className={`text-xs font-medium inline-flex w-6 h-6 items-center justify-center rounded-full mb-1 ${
-          isTodayDate
-            ? "bg-brand-500 text-white"
-            : isCurrentMonth
-            ? "text-charcoal-300"
-            : "text-charcoal-600"
-        }`}
-      >
-        {format(day, "d")}
-      </span>
+      <div className="flex items-center justify-between mb-1">
+        <span
+          className={`text-xs font-medium inline-flex w-6 h-6 items-center justify-center rounded-full ${
+            isTodayDate
+              ? "bg-brand-500 text-white"
+              : isCurrentMonth
+              ? "text-charcoal-300"
+              : "text-charcoal-600"
+          }`}
+        >
+          {format(day, "d")}
+        </span>
+        {isBlocked && (
+          <span
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-500/20 text-red-300 border border-red-500/30"
+            title={blockedReason ? `Blocked: ${blockedReason}` : "Blocked"}
+          >
+            <CalendarX size={10} />
+            BLOCKED
+          </span>
+        )}
+      </div>
+      {isBlocked && blockedReason && (
+        <p className="text-[10px] text-red-300/70 mb-1 truncate" title={blockedReason}>
+          {blockedReason}
+        </p>
+      )}
       <div className="space-y-0.5">
         {visible.map((b) => (
           <BookingChip key={b.id} booking={b} onClick={() => onBookingClick(b)} />
@@ -98,10 +118,18 @@ function DayCell({ day, bookings, isCurrentMonth, isTodayDate, onBookingClick }:
   );
 }
 
-export default function CalendarClient({ bookings, services, userRole: _userRole }: CalendarClientProps) {
+export default function CalendarClient({ bookings, services, userRole: _userRole, blockedDates }: CalendarClientProps) {
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerBooking, setDrawerBooking] = useState<Booking | undefined>(undefined);
+
+  const blockedByDate = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const bd of blockedDates) {
+      map.set(bd.date, bd.reason);
+    }
+    return map;
+  }, [blockedDates]);
 
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -182,6 +210,8 @@ export default function CalendarClient({ bookings, services, userRole: _userRole
           {calendarDays.map((day) => {
             const key = format(day, "yyyy-MM-dd");
             const dayBookings = bookingsByDate.get(key) ?? [];
+            const isBlocked = blockedByDate.has(key);
+            const blockedReason = blockedByDate.get(key) ?? null;
             return (
               <DayCell
                 key={key}
@@ -189,6 +219,8 @@ export default function CalendarClient({ bookings, services, userRole: _userRole
                 bookings={dayBookings}
                 isCurrentMonth={isSameMonth(day, currentMonth)}
                 isTodayDate={isToday(day)}
+                isBlocked={isBlocked}
+                blockedReason={blockedReason}
                 onBookingClick={setDrawerBooking}
               />
             );
@@ -196,13 +228,17 @@ export default function CalendarClient({ bookings, services, userRole: _userRole
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-4 px-4 py-3 border-t border-charcoal-800">
+        <div className="flex items-center gap-4 px-4 py-3 border-t border-charcoal-800 flex-wrap">
           {(["paid", "partial", "unpaid"] as PaymentStatus[]).map((s) => (
             <div key={s} className="flex items-center gap-1.5">
               <span className={`inline-block w-2.5 h-2.5 rounded-sm border ${STATUS_CHIP[s]}`} />
               <span className="text-xs text-charcoal-500 capitalize">{s}</span>
             </div>
           ))}
+          <div className="flex items-center gap-1.5">
+            <span className="inline-block w-2.5 h-2.5 rounded-sm bg-red-500/20 border border-red-500/30" />
+            <span className="text-xs text-charcoal-500">Blocked</span>
+          </div>
         </div>
       </div>
 
