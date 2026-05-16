@@ -12,13 +12,29 @@ const MAX_CAPTION_IMAGES = 5;
 
 type FrameMode = "each" | "collage";
 
+// How the finished image looks: the white Instax card, or the plain photo
+// with the logo stamped on it as a watermark.
+type OutputStyle = "instax" | "logo";
+
+// Logo watermark spot — [t]op/[b]ottom + [l]eft/[m]iddle/[r]ight.
+type LogoPosition = "tl" | "tm" | "tr" | "bl" | "bm" | "br";
+
+const LOGO_POSITIONS: { id: LogoPosition; label: string }[] = [
+  { id: "tl", label: "Upper Left" },
+  { id: "tm", label: "Upper Mid" },
+  { id: "tr", label: "Upper Right" },
+  { id: "bl", label: "Bottom Left" },
+  { id: "bm", label: "Bottom Mid" },
+  { id: "br", label: "Bottom Right" },
+];
+
 interface LoadedImage {
   id: string;
   el: HTMLImageElement;
   url: string;
 }
 
-// A finished framed image, ready to download or caption.
+// A finished rendered image, ready to download or caption.
 interface FramedImage {
   id: string;
   dataUrl: string;
@@ -57,6 +73,21 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, r: Rect
   ctx.clip();
   ctx.drawImage(img, sx, sy, sw, sh, r.x, r.y, r.w, r.h);
   ctx.restore();
+}
+
+// Trace a rounded-rectangle path (arcTo works on every browser).
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number
+) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
 
 // Arrange N photos inside a w×h window. Splits along the window's longer axis.
@@ -99,9 +130,9 @@ function layout(n: number, x: number, y: number, w: number, h: number, gap: numb
   ];
 }
 
-// The studio logo, stamped onto the bottom strip when available. Loaded once
-// and cached; resolves to null if /public/instax-logo.png has not been added
-// yet — in that case the frame falls back to the calligraphy studio name.
+// The studio logo, used on the Instax strip and as the photo watermark.
+// Loaded once and cached; resolves to null if /public/instax-logo.png is
+// missing — the Instax frame then falls back to the calligraphy studio name.
 const LOGO_SRC = "/instax-logo.png";
 let logoPromise: Promise<HTMLImageElement | null> | null = null;
 function loadStudioLogo(): Promise<HTMLImageElement | null> {
@@ -187,7 +218,62 @@ async function renderFrame(photos: LoadedImage[]): Promise<string> {
   return canvas.toDataURL("image/png");
 }
 
-// Re-encode a framed PNG as a smaller JPEG so a whole batch of them fits
+// Render a single photo at its natural aspect ratio with the studio logo
+// stamped as a watermark at the chosen spot. The logo sits on a soft
+// translucent white badge so it stays readable on any photo (light or dark).
+async function renderWithLogo(photo: LoadedImage, pos: LogoPosition): Promise<string> {
+  const img = photo.el;
+
+  // High resolution, capped to 2400px on the long side.
+  const longSide = Math.max(img.width, img.height);
+  const scale = Math.min(2400 / longSide, 1);
+  const W = Math.max(1, Math.round(img.width * scale));
+  const H = Math.max(1, Math.round(img.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas not supported");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  // The photo, full bleed at its natural aspect ratio.
+  ctx.drawImage(img, 0, 0, W, H);
+
+  const logo = await loadStudioLogo();
+  if (logo) {
+    // Size the logo relative to the photo.
+    let lw = W * 0.26;
+    let lh = lw * (logo.naturalHeight / logo.naturalWidth);
+    const maxLh = H * 0.15;
+    if (lh > maxLh) { lh = maxLh; lw = lh * (logo.naturalWidth / logo.naturalHeight); }
+
+    const pad = Math.round(Math.min(W, H) * 0.04);
+    const badgePadX = lw * 0.13;
+    const badgePadY = lh * 0.34;
+    const bw = lw + badgePadX * 2;
+    const bh = lh + badgePadY * 2;
+
+    const isTop = pos[0] === "t";
+    const col = pos[1]; // l | m | r
+    const bx = col === "l" ? pad : col === "r" ? W - bw - pad : (W - bw) / 2;
+    const by = isTop ? pad : H - bh - pad;
+
+    // Soft translucent white badge so the dark logo reads on any background.
+    ctx.save();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
+    roundRectPath(ctx, bx, by, bw, bh, bh * 0.3);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.drawImage(logo, bx + badgePadX, by + badgePadY, lw, lh);
+  }
+
+  return canvas.toDataURL("image/png");
+}
+
+// Re-encode a finished PNG as a smaller JPEG so a whole batch of them fits
 // inside sessionStorage when handed off to the caption generator.
 function downscaleForCaption(dataUrl: string, maxDim = 1100): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -210,13 +296,15 @@ function downscaleForCaption(dataUrl: string, maxDim = 1100): Promise<string> {
 export default function PhotoToolClient() {
   const router = useRouter();
   const [images, setImages] = useState<LoadedImage[]>([]);   // uploaded photos
-  const [mode, setMode] = useState<FrameMode>("each");        // frame each, or one collage
-  const [results, setResults] = useState<FramedImage[]>([]);  // rendered Instax frames
+  const [style, setStyle] = useState<OutputStyle>("instax"); // Instax card, or photo + logo
+  const [mode, setMode] = useState<FrameMode>("each");        // (Instax) frame each, or one collage
+  const [logoPos, setLogoPos] = useState<LogoPosition>("br"); // (Photo + logo) watermark spot
+  const [results, setResults] = useState<FramedImage[]>([]);  // rendered images
   const [error, setError] = useState("");
   const [rendering, setRendering] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const collageOverflow = mode === "collage" && images.length > MAX_COLLAGE;
+  const collageOverflow = style === "instax" && mode === "collage" && images.length > MAX_COLLAGE;
 
   const addFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -252,7 +340,7 @@ export default function PhotoToolClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-render the framed result(s) whenever the photos or the mode change.
+  // Re-render whenever the photos, style, framing mode, or logo spot change.
   useEffect(() => {
     if (images.length === 0) { setResults([]); return; }
     let cancelled = false;
@@ -260,7 +348,11 @@ export default function PhotoToolClient() {
     (async () => {
       try {
         let frames: string[];
-        if (mode === "collage") {
+        if (style === "logo") {
+          // Photo + logo — one watermarked photo per result.
+          frames = [];
+          for (const img of images) frames.push(await renderWithLogo(img, logoPos));
+        } else if (mode === "collage") {
           frames = [await renderFrame(images.slice(0, MAX_COLLAGE))];
         } else {
           frames = [];
@@ -270,18 +362,18 @@ export default function PhotoToolClient() {
           setResults(frames.map((dataUrl) => ({ id: crypto.randomUUID(), dataUrl })));
         }
       } catch {
-        if (!cancelled) setError("Could not render the frames. Please try again.");
+        if (!cancelled) setError("Could not render the photos. Please try again.");
       } finally {
         if (!cancelled) setRendering(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [images, mode]);
+  }, [images, style, mode, logoPos]);
 
   const downloadOne = (img: FramedImage, index: number) => {
     const a = document.createElement("a");
     a.href = img.dataUrl;
-    a.download = `snap-print-instax-${index + 1}.png`;
+    a.download = `snap-print-${style === "instax" ? "instax" : "photo"}-${index + 1}.png`;
     a.click();
   };
 
@@ -293,7 +385,7 @@ export default function PhotoToolClient() {
     }
   };
 
-  // Hand the framed photos to the caption generator on the /caption page.
+  // Hand the finished photos to the caption generator on the /caption page.
   const generateCaption = async () => {
     if (results.length === 0) return;
     setBusy(true);
@@ -309,6 +401,8 @@ export default function PhotoToolClient() {
       setBusy(false);
     }
   };
+
+  const noun = style === "instax" ? "frame" : "photo";
 
   return (
     <div className="space-y-5">
@@ -358,8 +452,37 @@ export default function PhotoToolClient() {
         </div>
       )}
 
-      {/* Mode toggle */}
+      {/* Output style */}
       {images.length > 0 && (
+        <div>
+          <p className="text-charcoal-400 text-sm mb-2">Output style</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setStyle("instax")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                style === "instax"
+                  ? "bg-brand-500/15 text-brand-400 border-brand-500/30"
+                  : "bg-charcoal-900 text-charcoal-400 border-charcoal-700 hover:text-white hover:border-charcoal-600"
+              }`}
+            >
+              📸 Instax frame
+            </button>
+            <button
+              onClick={() => setStyle("logo")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                style === "logo"
+                  ? "bg-brand-500/15 text-brand-400 border-brand-500/30"
+                  : "bg-charcoal-900 text-charcoal-400 border-charcoal-700 hover:text-white hover:border-charcoal-600"
+              }`}
+            >
+              🏷️ Photo + logo
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Instax: framing mode */}
+      {images.length > 0 && style === "instax" && (
         <div>
           <p className="text-charcoal-400 text-sm mb-2">How should they be framed?</p>
           <div className="flex flex-wrap gap-2">
@@ -392,11 +515,33 @@ export default function PhotoToolClient() {
         </div>
       )}
 
+      {/* Photo + logo: watermark position */}
+      {images.length > 0 && style === "logo" && (
+        <div>
+          <p className="text-charcoal-400 text-sm mb-2">Where should the logo go?</p>
+          <div className="grid grid-cols-3 gap-2 max-w-sm">
+            {LOGO_POSITIONS.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setLogoPos(p.id)}
+                className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                  logoPos === p.id
+                    ? "bg-brand-500/15 text-brand-400 border-brand-500/30"
+                    : "bg-charcoal-900 text-charcoal-400 border-charcoal-700 hover:text-white hover:border-charcoal-600"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Results / empty state */}
       {images.length === 0 ? (
         <label className="flex flex-col items-center justify-center gap-3 py-16 rounded-2xl border-2 border-dashed border-charcoal-700 hover:border-brand-500/60 hover:bg-brand-500/5 cursor-pointer transition-colors">
           <Upload size={28} className="text-charcoal-500" />
-          <span className="text-charcoal-400 text-sm">Add client photos to make Instax-style posts</span>
+          <span className="text-charcoal-400 text-sm">Add client photos to make Instax posts or logo-stamped photos</span>
           <input
             type="file"
             accept="image/*"
@@ -411,7 +556,7 @@ export default function PhotoToolClient() {
             <span className="text-charcoal-300 font-medium">
               {rendering
                 ? "Rendering…"
-                : `${results.length} frame${results.length !== 1 ? "s" : ""} ready`}
+                : `${results.length} ${noun}${results.length !== 1 ? "s" : ""} ready`}
             </span>
             {rendering && <Loader2 size={14} className="animate-spin text-charcoal-500" />}
           </div>
@@ -423,7 +568,7 @@ export default function PhotoToolClient() {
                 className="relative rounded-lg overflow-hidden border border-charcoal-700 bg-charcoal-900"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={img.dataUrl} alt={`Framed photo ${i + 1}`} className="w-full h-auto" />
+                <img src={img.dataUrl} alt={`Result ${i + 1}`} className="w-full h-auto" />
                 <button
                   onClick={() => downloadOne(img, i)}
                   className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-black/70 flex items-center justify-center text-white hover:bg-black"
