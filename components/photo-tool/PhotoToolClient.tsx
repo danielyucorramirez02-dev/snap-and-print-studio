@@ -159,17 +159,14 @@ async function renderFrame(photos: LoadedImage[]): Promise<string> {
   const stripCY = margin + ph + bottomH / 2;
   const logo = await loadStudioLogo();
   if (logo) {
-    // Draw the logo with a "multiply" blend so its light/off-white background
-    // melts into the white card — only the dark logo art shows through.
+    // The logo PNG has a transparent background, so it drops straight onto
+    // the white card — just scale it to fit the bottom strip and center it.
     const maxLogoW = (W - margin * 2) * 0.55;
     const maxLogoH = bottomH * 0.64;
     const scale = Math.min(maxLogoW / logo.naturalWidth, maxLogoH / logo.naturalHeight);
     const lw = logo.naturalWidth * scale;
     const lh = logo.naturalHeight * scale;
-    ctx.save();
-    ctx.globalCompositeOperation = "multiply";
     ctx.drawImage(logo, (W - lw) / 2, stripCY - lh / 2, lw, lh);
-    ctx.restore();
   } else {
     // Studio name — small, straight (0°) calligraphy, shrunk to fit. Kept
     // modest so it reads like a real Instax signature.
