@@ -12,8 +12,9 @@ import { formatPeso } from "@/lib/utils/formatters";
 import { createClient } from "@/lib/supabase/client";
 import {
   ChevronLeft, CheckCircle2, Loader2, AlertCircle,
-  Clock, CalendarDays, Copy, Check, Upload, X,
+  Clock, CalendarDays, Copy, Check, Upload, X, MessageCircle,
 } from "lucide-react";
+import { MESSENGER_URL } from "@/lib/studio";
 import type { Service } from "@/types";
 
 type Step = "type" | "package" | "additionals" | "datetime" | "info" | "payment" | "success";
@@ -900,6 +901,14 @@ export default function BookingFlow({ services }: BookingFlowProps) {
         <p className="text-charcoal-600 text-xs">Save this link to check your booking anytime:</p>
         <p className="text-brand-400 text-xs break-all bg-charcoal-900 border border-charcoal-800 rounded-lg px-3 py-2">
           {bookingUrl}
+        </p>
+        <a href={MESSENGER_URL} target="_blank" rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-[#0084FF] hover:bg-[#0072e0] text-white font-semibold text-sm shadow-lg shadow-[#0084FF]/25 active:scale-[0.98] transition-all duration-200 ease-out">
+          <MessageCircle size={16} />
+          Message Us on Messenger
+        </a>
+        <p className="text-charcoal-600 text-xs">
+          Reach us fast on Facebook — just send your name and booking date.
         </p>
       </div>
     </div>
