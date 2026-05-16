@@ -306,14 +306,11 @@ export default function BookingFlow({ services }: BookingFlowProps) {
                 <p className="text-white font-semibold">{s.name}</p>
                 {s.description && <p className="text-charcoal-400 text-xs mt-0.5">{s.description}</p>}
                 <ul className="mt-2 space-y-0.5">
-                  {s.inclusions.slice(0, 4).map((inc, i) => (
+                  {s.inclusions.map((inc, i) => (
                     <li key={i} className="text-charcoal-400 text-xs flex items-center gap-1">
                       <span className="text-brand-500">✓</span> {inc}
                     </li>
                   ))}
-                  {s.inclusions.length > 4 && (
-                    <li className="text-charcoal-600 text-xs">+{s.inclusions.length - 4} more inclusions</li>
-                  )}
                 </ul>
               </div>
               <div className="shrink-0 text-right">
@@ -409,11 +406,12 @@ export default function BookingFlow({ services }: BookingFlowProps) {
         <div className="flex items-start gap-2 text-xs text-charcoal-500 mb-4">
           <Clock size={13} className="shrink-0 mt-0.5" />
           <span>
-            Your <strong className="text-charcoal-300">{selectedService.name}</strong> session runs{" "}
+            Your <strong className="text-charcoal-300">{selectedService.name}</strong> session is{" "}
             <strong className="text-charcoal-300">
-              {getSelfShootBlockMinutes(selectedService.name) === 90 ? "1.5 hours" : "1 hour"} from your booked start time
-            </strong>{" "}
-            — not a flexible window. Arriving 15+ min late adds a ₱50 fee; a no-show forfeits the downpayment.
+              {getSelfShootBlockMinutes(selectedService.name) === 90 ? "1.5 hours" : "1 hour"}
+            </strong>, starting exactly at your booked time —{" "}
+            <strong className="text-charcoal-300">bawal ma-late po!</strong> 15+ minutes late means a ₱50 fee,
+            and a no-show means your downpayment is non-refundable.
           </span>
         </div>
       )}
@@ -674,7 +672,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
         <div className="flex items-start gap-2 p-3 rounded-lg bg-charcoal-800 border border-charcoal-700 text-xs text-charcoal-400">
           <Clock size={13} className="shrink-0 mt-0.5 text-amber-400" />
-          <span><strong className="text-amber-400">Late policy:</strong> Arriving 15+ minutes past your scheduled time adds a ₱50 late fee. No-shows forfeit the downpayment.</span>
+          <span><strong className="text-amber-400">Bawal ma-late po!</strong> Arrive 15 minutes or more late and there is a ₱50 fee. A no-show means your downpayment is non-refundable.</span>
         </div>
         <button onClick={() => { if (validateInfo()) setStep("payment"); }}
           className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98] transition-all duration-200 ease-out">

@@ -95,7 +95,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
         </p>`
       : ""}
     <p style="color:#f59e0b;font-size:13px;background:#f59e0b15;border:1px solid #f59e0b30;padding:12px;border-radius:8px;margin-top:16px;">
-      ⏰ <strong>Late policy:</strong> Arriving 15+ minutes past your scheduled time adds a ₱50 late fee. No-shows forfeit the downpayment.
+      ⏰ <strong>Bawal ma-late po!</strong> Arriving 15 or more minutes late means a ₱50 fee. A no-show means your downpayment is non-refundable.
     </p>
     ${ctaButton("View My Booking →", bookingUrl)}
     <p style="color:#6b6b8a;font-size:12px;text-align:center;">
@@ -150,7 +150,7 @@ export async function sendDownpaymentConfirmed(data: DownpaymentConfirmedData) {
       ${detailRow("Status", "✅ Confirmed")}
     </table>
     <p style="color:#f59e0b;font-size:13px;background:#f59e0b15;border:1px solid #f59e0b30;padding:12px;border-radius:8px;">
-      ⏰ <strong>Late policy:</strong> Arriving 15+ minutes past your scheduled time adds a ₱50 late fee. No-shows forfeit the downpayment.
+      ⏰ <strong>Bawal ma-late po!</strong> Arriving 15 or more minutes late means a ₱50 fee. A no-show means your downpayment is non-refundable.
     </p>
     ${ctaButton("View My Booking →", bookingUrl)}
     <p style="color:#6b6b8a;font-size:12px;text-align:center;">
@@ -201,7 +201,7 @@ export async function sendBookingReminder(data: BookingReminderData) {
       Searchable on Waze &amp; Google Maps as &quot;${STUDIO_NAME}&quot;
     </p>
     <p style="color:#f59e0b;font-size:13px;background:#f59e0b15;border:1px solid #f59e0b30;padding:12px;border-radius:8px;">
-      ⏰ <strong>Late policy:</strong> Arriving 15+ minutes past your scheduled time adds a ₱50 late fee. No-shows forfeit the downpayment.
+      ⏰ <strong>Bawal ma-late po!</strong> Arriving 15 or more minutes late means a ₱50 fee. A no-show means your downpayment is non-refundable.
     </p>
     ${ctaButton("View My Booking →", bookingUrl)}
     <p style="color:#6b6b8a;font-size:12px;text-align:center;">
