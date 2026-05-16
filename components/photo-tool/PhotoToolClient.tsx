@@ -75,21 +75,6 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, r: Rect
   ctx.restore();
 }
 
-// Trace a rounded-rectangle path (arcTo works on every browser).
-function roundRectPath(
-  ctx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number, r: number
-) {
-  r = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
 // Arrange N photos inside a w×h window. Splits along the window's longer axis.
 function layout(n: number, x: number, y: number, w: number, h: number, gap: number): Rect[] {
   if (n <= 1) return [{ x, y, w, h }];
@@ -243,31 +228,25 @@ async function renderWithLogo(photo: LoadedImage, pos: LogoPosition): Promise<st
 
   const logo = await loadStudioLogo();
   if (logo) {
-    // Size the logo relative to the photo.
-    let lw = W * 0.26;
+    // Small, tasteful watermark — the transparent logo, no backing.
+    let lw = W * 0.17;
     let lh = lw * (logo.naturalHeight / logo.naturalWidth);
-    const maxLh = H * 0.15;
+    const maxLh = H * 0.1;
     if (lh > maxLh) { lh = maxLh; lw = lh * (logo.naturalWidth / logo.naturalHeight); }
 
-    const pad = Math.round(Math.min(W, H) * 0.04);
-    const badgePadX = lw * 0.13;
-    const badgePadY = lh * 0.34;
-    const bw = lw + badgePadX * 2;
-    const bh = lh + badgePadY * 2;
-
+    const pad = Math.round(Math.min(W, H) * 0.035);
     const isTop = pos[0] === "t";
     const col = pos[1]; // l | m | r
-    const bx = col === "l" ? pad : col === "r" ? W - bw - pad : (W - bw) / 2;
-    const by = isTop ? pad : H - bh - pad;
+    const lx = col === "l" ? pad : col === "r" ? W - lw - pad : (W - lw) / 2;
+    const ly = isTop ? pad : H - lh - pad;
 
-    // Soft translucent white badge so the dark logo reads on any background.
+    // A soft shadow gives the logo a little definition without a visible box.
     ctx.save();
-    ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
-    roundRectPath(ctx, bx, by, bw, bh, bh * 0.3);
-    ctx.fill();
+    ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+    ctx.shadowBlur = Math.round(lh * 0.2);
+    ctx.shadowOffsetY = Math.round(lh * 0.05);
+    ctx.drawImage(logo, lx, ly, lw, lh);
     ctx.restore();
-
-    ctx.drawImage(logo, bx + badgePadX, by + badgePadY, lw, lh);
   }
 
   return canvas.toDataURL("image/png");
