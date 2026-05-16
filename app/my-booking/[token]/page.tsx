@@ -142,7 +142,7 @@ export default async function MyBookingPage({ params }: { params: Promise<{ toke
       {/* Late policy */}
       <div className="flex items-start gap-2 p-3 rounded-xl bg-charcoal-900 border border-charcoal-800 text-xs text-charcoal-400">
         <Clock size={13} className="text-amber-400 shrink-0 mt-0.5" />
-        <span><strong className="text-amber-400">Late policy:</strong> Arrivals 15 minutes or more past your scheduled time will incur a ₱50 late fee.</span>
+        <span><strong className="text-amber-400">Bawal ma-late po!</strong> Arrive 15 minutes or more late and there is a ₱50 fee. A no-show means your downpayment is non-refundable.</span>
       </div>
 
       {/* Session photos */}

@@ -6,7 +6,7 @@ import {
   MILESTONE_EARLY_SLOTS, MILESTONE_LATE_SLOTS,
   type MilestoneHalfDay,
   type SlotAvailabilityReason,
-  getStudioHoursForDate, formatSlotLabel,
+  getStudioHoursForDate, formatSlotLabel, getSelfShootBlockMinutes,
 } from "@/lib/utils/slots";
 import { formatPeso } from "@/lib/utils/formatters";
 import { createClient } from "@/lib/supabase/client";
@@ -31,7 +31,9 @@ const STEPS_OTHER: Step[]      = ["type", "package", "datetime", "info", "paymen
 const GCASH_NUMBER = "09623028470";
 const GCASH_NAME   = "Daniel R.";
 
-const today = new Date().toISOString().split("T")[0];
+// Manila calendar date — the studio and its customers are in PH (UTC+8).
+// Using UTC here could be off by a day near midnight Manila time.
+const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
 
 function StepIndicator({ index, total }: { index: number; total: number }) {
   if (index < 0) return null;
@@ -149,7 +151,9 @@ export default function BookingFlow({ services }: BookingFlowProps) {
   const validateInfo = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Name is required";
+    const cleanPhone = phone.replace(/[\s-]/g, "");
     if (!phone.trim()) e.phone = "Phone is required";
+    else if (!/^(09\d{9}|\+639\d{9})$/.test(cleanPhone)) e.phone = "Enter a valid PH mobile number (e.g. 09171234567)";
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Enter a valid email";
     if (sessionType === "milestone") {
       if (!celebrantName.trim()) e.celebrantName = "Celebrant name is required";
@@ -246,7 +250,9 @@ export default function BookingFlow({ services }: BookingFlowProps) {
   // ── Step: Session Type ────────────────────────────────────────────────────
   if (step === "type") return (
     <div key="step-type" className="animate-fade-in-up">
-      <StepIndicator index={0} total={5} />
+      {/* Flow length is unknown until the type is picked; show the longest
+          (self-shoot) so the bar never grows mid-flow. */}
+      <StepIndicator index={0} total={STEPS_SELF_SHOOT.length} />
       <h2 className="text-white font-semibold text-lg mb-1">What type of session?</h2>
       <p className="text-charcoal-400 text-sm mb-5">Choose the session that fits your occasion</p>
       <div className="space-y-3">
@@ -300,14 +306,11 @@ export default function BookingFlow({ services }: BookingFlowProps) {
                 <p className="text-white font-semibold">{s.name}</p>
                 {s.description && <p className="text-charcoal-400 text-xs mt-0.5">{s.description}</p>}
                 <ul className="mt-2 space-y-0.5">
-                  {s.inclusions.slice(0, 4).map((inc, i) => (
+                  {s.inclusions.map((inc, i) => (
                     <li key={i} className="text-charcoal-400 text-xs flex items-center gap-1">
                       <span className="text-brand-500">✓</span> {inc}
                     </li>
                   ))}
-                  {s.inclusions.length > 4 && (
-                    <li className="text-charcoal-600 text-xs">+{s.inclusions.length - 4} more inclusions</li>
-                  )}
                 </ul>
               </div>
               <div className="shrink-0 text-right">
@@ -397,6 +400,19 @@ export default function BookingFlow({ services }: BookingFlowProps) {
         <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm mb-4">
           <AlertCircle size={15} className="shrink-0 mt-0.5" />
           This is a booking <strong>request</strong>. We&apos;ll confirm your preferred schedule after reviewing availability.
+        </div>
+      )}
+      {sessionType === "self-shoot" && selectedService && (
+        <div className="flex items-start gap-2 text-xs text-charcoal-500 mb-4">
+          <Clock size={13} className="shrink-0 mt-0.5" />
+          <span>
+            Your <strong className="text-charcoal-300">{selectedService.name}</strong> session is{" "}
+            <strong className="text-charcoal-300">
+              {getSelfShootBlockMinutes(selectedService.name) === 90 ? "1.5 hours" : "1 hour"}
+            </strong>, starting exactly at your booked time —{" "}
+            <strong className="text-charcoal-300">bawal ma-late po!</strong> 15+ minutes late means a ₱50 fee,
+            and a no-show means your downpayment is non-refundable.
+          </span>
         </div>
       )}
       {studioHours && (
@@ -656,7 +672,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
         <div className="flex items-start gap-2 p-3 rounded-lg bg-charcoal-800 border border-charcoal-700 text-xs text-charcoal-400">
           <Clock size={13} className="shrink-0 mt-0.5 text-amber-400" />
-          <span><strong className="text-amber-400">Late policy:</strong> Arrivals 15 minutes or more past your scheduled time will incur a ₱50 late fee.</span>
+          <span><strong className="text-amber-400">Bawal ma-late po!</strong> Arrive 15 minutes or more late and there is a ₱50 fee. A no-show means your downpayment is non-refundable.</span>
         </div>
         <button onClick={() => { if (validateInfo()) setStep("payment"); }}
           className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98] transition-all duration-200 ease-out">
