@@ -55,6 +55,11 @@ const FILTERS: { id: "all" | PaymentStatus; label: string }[] = [
   { id: "paid",    label: "Paid" },
 ];
 
+// A booking is waiting on staff: a GCash receipt is uploaded but not yet approved.
+function needsApproval(b: Booking): boolean {
+  return !!b.receipt_url && !b.downpayment_paid && b.payment_status !== "paid";
+}
+
 interface BookingRowProps {
   booking: Booking;
   payments: PaymentHistory[];
@@ -66,8 +71,7 @@ interface BookingRowProps {
 
 function BookingRow({ booking, payments, onAddPayment, onViewReceipt, onApproveReceipt, approvingId }: BookingRowProps) {
   const [expanded, setExpanded] = useState(false);
-  const hasPendingReceipt =
-    !!booking.receipt_url && !booking.downpayment_paid && booking.payment_status !== "paid";
+  const hasPendingReceipt = needsApproval(booking);
   const isApproving = approvingId === booking.id;
 
   return (
@@ -100,6 +104,12 @@ function BookingRow({ booking, payments, onAddPayment, onViewReceipt, onApproveR
             {booking.service && (
               <span className="ml-1 text-charcoal-600">· {booking.service.name}</span>
             )}
+          </p>
+          <p className="sm:hidden text-xs mt-0.5">
+            <span className="text-charcoal-500">Balance: </span>
+            <span className={booking.balance <= 0 ? "text-charcoal-400" : "text-amber-400 font-medium"}>
+              {formatPeso(booking.balance)}
+            </span>
           </p>
         </div>
 
@@ -232,15 +242,25 @@ export default function PaymentsClient({
   }, [paymentHistory]);
 
   const filtered = useMemo(() => {
-    return bookings.filter((b) => {
-      const matchesStatus = filter === "all" || b.payment_status === filter;
-      const matchesSearch =
-        search.trim() === "" ||
-        b.client_name.toLowerCase().includes(search.toLowerCase()) ||
-        b.client_phone?.includes(search);
-      return matchesStatus && matchesSearch;
-    });
+    return bookings
+      .filter((b) => {
+        const matchesStatus = filter === "all" || b.payment_status === filter;
+        const matchesSearch =
+          search.trim() === "" ||
+          b.client_name.toLowerCase().includes(search.toLowerCase()) ||
+          b.client_phone?.includes(search);
+        return matchesStatus && matchesSearch;
+      })
+      // Surface bookings waiting on staff approval first.
+      .sort((a, b) => Number(needsApproval(b)) - Number(needsApproval(a)));
   }, [bookings, filter, search]);
+
+  const counts = useMemo(() => ({
+    all: bookings.length,
+    unpaid: bookings.filter((b) => b.payment_status === "unpaid").length,
+    partial: bookings.filter((b) => b.payment_status === "partial").length,
+    paid: bookings.filter((b) => b.payment_status === "paid").length,
+  }), [bookings]);
 
   return (
     <>
@@ -277,7 +297,7 @@ export default function PaymentsClient({
                   : "bg-charcoal-900 text-charcoal-400 border-charcoal-700 hover:text-white hover:border-charcoal-600"
               }`}
             >
-              {f.label}
+              {f.label} · {counts[f.id]}
             </button>
           ))}
         </div>

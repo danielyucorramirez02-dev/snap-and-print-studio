@@ -13,7 +13,7 @@ import {
   addMonths,
   subMonths,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus, CalendarX } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CalendarX, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatTime } from "@/lib/utils/formatters";
 import BookingModal from "@/components/bookings/BookingModal";
@@ -48,7 +48,7 @@ function BookingChip({ booking, onClick }: BookingChipProps) {
   const chipClass = isPending ? PENDING_CHIP : STATUS_CHIP[booking.payment_status];
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
       className={`w-full text-left text-xs px-1.5 py-0.5 rounded border truncate transition-opacity hover:opacity-75 ${chipClass}`}
     >
       {isPending && <span className="mr-0.5">⏳</span>}
@@ -66,18 +66,21 @@ interface DayCellProps {
   blockedReason: string | null | undefined;
   isBlocked: boolean;
   onBookingClick: (b: Booking) => void;
+  onDayClick: () => void;
 }
 
-function DayCell({ day, bookings, isCurrentMonth, isTodayDate, blockedReason, isBlocked, onBookingClick }: DayCellProps) {
+function DayCell({ day, bookings, isCurrentMonth, isTodayDate, blockedReason, isBlocked, onBookingClick, onDayClick }: DayCellProps) {
   const visible = bookings.slice(0, MAX_CHIPS);
   const overflow = bookings.length - MAX_CHIPS;
+  const hasBookings = bookings.length > 0;
 
   const baseBg = isCurrentMonth ? "bg-charcoal-900" : "bg-charcoal-950";
   const blockedBg = isBlocked ? "bg-red-500/10" : "";
 
   return (
     <div
-      className={`relative min-h-[100px] border-r border-b border-charcoal-800 p-1.5 ${baseBg} ${blockedBg}`}
+      onClick={hasBookings ? onDayClick : undefined}
+      className={`relative min-h-[100px] border-r border-b border-charcoal-800 p-1.5 ${baseBg} ${blockedBg} ${hasBookings ? "cursor-pointer hover:brightness-110 transition-all" : ""}`}
     >
       <div className="flex items-center justify-between mb-1">
         <span
@@ -111,8 +114,59 @@ function DayCell({ day, bookings, isCurrentMonth, isTodayDate, blockedReason, is
           <BookingChip key={b.id} booking={b} onClick={() => onBookingClick(b)} />
         ))}
         {overflow > 0 && (
-          <p className="text-xs text-charcoal-500 pl-1">+{overflow} more</p>
+          <p className="text-xs text-brand-400 font-medium pl-1">+{overflow} more</p>
         )}
+      </div>
+    </div>
+  );
+}
+
+interface DayDetailModalProps {
+  day: Date;
+  bookings: Booking[];
+  onBookingClick: (b: Booking) => void;
+  onClose: () => void;
+}
+
+function DayDetailModal({ day, bookings, onBookingClick, onClose }: DayDetailModalProps) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-charcoal-900 border border-charcoal-700 rounded-xl w-full max-w-sm max-h-[80vh] flex flex-col overflow-hidden shadow-2xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-charcoal-800 shrink-0">
+          <div>
+            <h3 className="text-white font-semibold text-sm">{format(day, "EEEE, MMMM d")}</h3>
+            <p className="text-charcoal-500 text-xs">
+              {bookings.length} booking{bookings.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-charcoal-400 hover:text-white transition-colors" aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="overflow-y-auto divide-y divide-charcoal-800">
+          {bookings.map((b) => {
+            const isPending = b.booking_status === "pending";
+            return (
+              <button
+                key={b.id}
+                onClick={() => onBookingClick(b)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-charcoal-800/60 transition-colors"
+              >
+                <span className="text-sm font-semibold text-brand-400 w-16 shrink-0">{formatTime(b.booking_time)}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-white text-sm font-medium truncate">{b.client_name}</p>
+                  <p className="text-charcoal-400 text-xs truncate">{b.service?.name ?? "—"}</p>
+                </div>
+                <span className={`shrink-0 text-[11px] font-medium capitalize px-2 py-0.5 rounded-full border ${isPending ? PENDING_CHIP : STATUS_CHIP[b.payment_status]}`}>
+                  {isPending ? "Pending" : b.payment_status}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -122,6 +176,7 @@ export default function CalendarClient({ bookings, services, userRole: _userRole
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerBooking, setDrawerBooking] = useState<Booking | undefined>(undefined);
+  const [dayDetail, setDayDetail] = useState<{ day: Date; bookings: Booking[] } | null>(null);
 
   const blockedByDate = useMemo(() => {
     const map = new Map<string, string | null>();
@@ -222,6 +277,7 @@ export default function CalendarClient({ bookings, services, userRole: _userRole
                 isBlocked={isBlocked}
                 blockedReason={blockedReason}
                 onBookingClick={setDrawerBooking}
+                onDayClick={() => setDayDetail({ day, bookings: dayBookings })}
               />
             );
           })}
@@ -255,6 +311,16 @@ export default function CalendarClient({ bookings, services, userRole: _userRole
         <BookingDrawer
           booking={drawerBooking}
           onClose={() => setDrawerBooking(undefined)}
+        />
+      )}
+
+      {/* Day Detail Modal */}
+      {dayDetail && (
+        <DayDetailModal
+          day={dayDetail.day}
+          bookings={dayDetail.bookings}
+          onBookingClick={(b) => { setDayDetail(null); setDrawerBooking(b); }}
+          onClose={() => setDayDetail(null)}
         />
       )}
     </>
