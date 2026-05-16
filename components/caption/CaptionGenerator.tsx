@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { generateCaption } from "@/app/(dashboard)/caption/actions";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +56,30 @@ export default function CaptionGenerator() {
   const [caption, setCaption] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [fromInstax, setFromInstax] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Pick up photos handed over from the Instax Maker's "Generate caption" button.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("sp-caption-handoff");
+      if (!raw) return;
+      sessionStorage.removeItem("sp-caption-handoff");
+      const incoming = JSON.parse(raw) as string[];
+      if (Array.isArray(incoming) && incoming.length > 0) {
+        setImages(
+          incoming.slice(0, MAX_IMAGES).map((b64, i) => ({
+            preview: b64,
+            base64: b64,
+            name: `instax-${i + 1}.jpg`,
+          }))
+        );
+        setFromInstax(true);
+      }
+    } catch {
+      /* ignore a malformed handoff */
+    }
+  }, []);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -128,6 +151,14 @@ export default function CaptionGenerator() {
           ))}
         </div>
       </div>
+
+      {/* Brought over from the Instax Maker */}
+      {fromInstax && (
+        <div className="flex items-start gap-2 p-3 rounded-lg bg-brand-500/10 border border-brand-500/20 text-brand-300 text-sm">
+          <Sparkles size={16} className="shrink-0 mt-0.5" />
+          Framed photos brought from the Instax Maker — pick a session type and generate the caption.
+        </div>
+      )}
 
       {/* Upload Zone */}
       <div>
