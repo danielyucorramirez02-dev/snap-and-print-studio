@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { formatDate, formatTime, formatPeso } from "@/lib/utils/formatters";
-import { CheckCircle2, Clock, CalendarDays, Package, Wallet } from "lucide-react";
+import { CheckCircle2, Clock, CalendarDays, Package, Wallet, MessageCircle } from "lucide-react";
+import { MESSENGER_URL } from "@/lib/studio";
 import type { Booking, PaymentStatus, BookingStatus } from "@/types";
 
 const PAYMENT_STYLES: Record<PaymentStatus, string> = {
@@ -144,6 +145,12 @@ export default async function MyBookingPage({ params }: { params: Promise<{ toke
         <Clock size={13} className="text-amber-400 shrink-0 mt-0.5" />
         <span><strong className="text-amber-400">Bawal ma-late po!</strong> Arrive 15 minutes or more late and there is a ₱50 fee. A no-show means your downpayment is non-refundable.</span>
       </div>
+
+      {/* Contact the studio */}
+      <a href={MESSENGER_URL} target="_blank" rel="noopener noreferrer"
+        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#0084FF] hover:bg-[#0072e0] text-white font-semibold text-sm transition-colors">
+        <MessageCircle size={16} /> Message Us on Messenger
+      </a>
 
       {/* Session photos */}
       {photos.length > 0 && (

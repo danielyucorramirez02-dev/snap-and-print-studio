@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { formatDate, formatTime, formatPeso } from "@/lib/utils/formatters";
+import { MESSENGER_URL } from "@/lib/studio";
 
 const STUDIO_NAME = "Snap & Print Studio";
 const STUDIO_ADDRESS = "Phase 5, Block 22, Lot 37 Pandi Residence 1, Mapulang Lupa, Pandi Bulacan";
@@ -101,6 +102,9 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
     <p style="color:#6b6b8a;font-size:12px;text-align:center;">
       Or copy this link: <a href="${bookingUrl}" style="color:#f59e0b;">${bookingUrl}</a>
     </p>
+    <p style="color:#9999bb;font-size:13px;text-align:center;margin-top:16px;">
+      Questions or changes? <a href="${MESSENGER_URL}" style="color:#0084FF;font-weight:bold;">Message us on Messenger</a>
+    </p>
   `;
 
   const { error } = await resend.emails.send({
@@ -156,6 +160,9 @@ export async function sendDownpaymentConfirmed(data: DownpaymentConfirmedData) {
     <p style="color:#6b6b8a;font-size:12px;text-align:center;">
       Or copy this link: <a href="${bookingUrl}" style="color:#f59e0b;">${bookingUrl}</a>
     </p>
+    <p style="color:#9999bb;font-size:13px;text-align:center;margin-top:16px;">
+      Questions or changes? <a href="${MESSENGER_URL}" style="color:#0084FF;font-weight:bold;">Message us on Messenger</a>
+    </p>
   `;
 
   const { error } = await resend.emails.send({
@@ -205,7 +212,7 @@ export async function sendBookingReminder(data: BookingReminderData) {
     </p>
     ${ctaButton("View My Booking →", bookingUrl)}
     <p style="color:#6b6b8a;font-size:12px;text-align:center;">
-      Need to reschedule? Reply to this email or message us on Facebook.
+      Need to reschedule? Reply to this email or <a href="${MESSENGER_URL}" style="color:#0084FF;">message us on Messenger</a>.
     </p>
   `;
 
