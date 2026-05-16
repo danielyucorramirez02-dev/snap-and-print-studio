@@ -52,13 +52,16 @@ export async function generateCaption(
 
   try {
     const response = await groq.chat.completions.create({
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      // Llama 4 Maverick — Groq's stronger free multimodal model; writes
+      // tighter, more natural captions than Scout while still reading photos.
+      model: "meta-llama/llama-4-maverick-17b-128e-instruct",
       messages: [
         {
           role: "user",
           content: [{ type: "text", text: prompt }, ...imageContent],
         },
       ],
+      temperature: 0.8,
       max_tokens: 400,
     });
 
