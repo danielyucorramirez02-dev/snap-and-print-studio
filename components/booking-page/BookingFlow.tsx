@@ -409,8 +409,11 @@ export default function BookingFlow({ services }: BookingFlowProps) {
         <div className="flex items-start gap-2 text-xs text-charcoal-500 mb-4">
           <Clock size={13} className="shrink-0 mt-0.5" />
           <span>
-            Your <strong className="text-charcoal-300">{selectedService.name}</strong> session reserves a{" "}
-            {getSelfShootBlockMinutes(selectedService.name) === 90 ? "1.5-hour" : "1-hour"} slot.
+            Your <strong className="text-charcoal-300">{selectedService.name}</strong> session runs{" "}
+            <strong className="text-charcoal-300">
+              {getSelfShootBlockMinutes(selectedService.name) === 90 ? "1.5 hours" : "1 hour"} from your booked start time
+            </strong>{" "}
+            — not a flexible window. Arriving 15+ min late adds a ₱50 fee; a no-show forfeits the downpayment.
           </span>
         </div>
       )}
@@ -671,7 +674,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
         <div className="flex items-start gap-2 p-3 rounded-lg bg-charcoal-800 border border-charcoal-700 text-xs text-charcoal-400">
           <Clock size={13} className="shrink-0 mt-0.5 text-amber-400" />
-          <span><strong className="text-amber-400">Late policy:</strong> Arrivals 15 minutes or more past your scheduled time will incur a ₱50 late fee.</span>
+          <span><strong className="text-amber-400">Late policy:</strong> Arriving 15+ minutes past your scheduled time adds a ₱50 late fee. No-shows forfeit the downpayment.</span>
         </div>
         <button onClick={() => { if (validateInfo()) setStep("payment"); }}
           className="w-full py-3.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm shadow-lg shadow-brand-500/30 hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98] transition-all duration-200 ease-out">
