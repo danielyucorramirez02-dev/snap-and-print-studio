@@ -9,9 +9,9 @@ const CAPTION_STYLE = `Voice — write like a real Gen Z / Gen Alpha person post
 - Short and punchy — 1 to 2 lines before the hashtags. No long paragraphs.
 - Drop current internet slang naturally where it fits (e.g. "slay", "ate", "it's giving ___", "main character", "the way ___", "no bc ___", "lowkey", "fr", "core", "understood the assignment"). Keep it effortless — never forced or cringe, and don't pile it on.
 - Light, natural Taglish is good (this is a Filipino studio) — a few Tagalog words mixed in, not a full translation.
-- Barely any emojis: 0 to 2 max, used casually, never as decoration.
+- Use a few emojis — around 3 to 5 — placed naturally within the text where they fit the vibe (not stacked together in a decorative row).
 - No hype punctuation, no "Book your slot today!!!" energy. Keep the call-to-action chill and short, like "dm us to book" or "book na".
-- 3 to 5 relevant hashtags only — use CamelCase for multi-word ones so they stay readable (e.g. #KidsPhotography).
+- End with 8 to 12 relevant hashtags — mix photography tags, the session vibe, and local tags (Pandi, Bulacan). Use CamelCase for multi-word ones so they stay readable (e.g. #KidsPhotography).
 - Hard avoid these millennial tells: "Look at this cutie!", "Bring out your ___ side", stacked emojis like 🥰✨📸, and overly polished marketing copy.`;
 
 const PHOTO_GROUNDING = `Look carefully at the photo(s) and describe ONLY what is actually shown: how many people there are and who they are (a child, a teen, an adult, a couple, a barkada, or a family). Never call it a family or group shoot when only one person is shown. Do not invent people, events, or details that are not visible.`;
