@@ -25,6 +25,7 @@ export default async function CalendarPage() {
     supabase
       .from("bookings")
       .select("*, service:services(*)")
+      .neq("booking_status", "cancelled")
       .order("booking_date", { ascending: true })
       .order("booking_time", { ascending: true }),
     supabase
