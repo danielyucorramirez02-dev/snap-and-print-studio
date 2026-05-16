@@ -1,9 +1,10 @@
 import type { Booking, Service } from "@/types";
 
-// Online-bookable hours per day of week (0=Sun ... 6=Sat). Opens at 10am so
-// pre-booked sessions can be prepared ahead; physical walk-ins are 1pm-7pm.
+// Online-bookable hours per day of week (0=Sun ... 6=Sat). Most days open
+// 10am so pre-booked sessions can be prepped ahead; Sundays are 1pm-7pm
+// only. Physical walk-ins are 1pm-7pm.
 export const STUDIO_HOURS: Record<number, { open: string; close: string } | null> = {
-  0: { open: "10:00", close: "19:00" }, // Sunday
+  0: { open: "13:00", close: "19:00" }, // Sunday — 1pm-7pm only
   1: { open: "10:00", close: "19:00" }, // Monday
   2: { open: "10:00", close: "19:00" }, // Tuesday
   3: { open: "10:00", close: "19:00" }, // Wednesday
