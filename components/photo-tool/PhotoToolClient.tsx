@@ -138,8 +138,9 @@ async function renderFrame(photos: LoadedImage[]): Promise<string> {
     if (rects[i]) drawCover(ctx, p.el, rects[i]);
   });
 
-  // Studio name — straight (0°) calligraphy in the bottom strip, shrunk to fit.
-  let fontSize = Math.round(bottomH * 0.5);
+  // Studio name — small, straight (0°) calligraphy in the bottom strip,
+  // shrunk to fit. Kept modest so it reads like a real Instax signature.
+  let fontSize = Math.round(bottomH * 0.34);
   ctx.font = `700 ${fontSize}px ${FONT_FAMILY}`;
   const maxTextW = W - margin * 2;
   const textW = ctx.measureText(STUDIO_NAME).width;
