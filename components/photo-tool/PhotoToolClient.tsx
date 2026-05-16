@@ -48,27 +48,43 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, r: Rect
   ctx.restore();
 }
 
-// Arrange N photos inside a square window.
-function layout(n: number, x: number, y: number, size: number, gap: number): Rect[] {
-  if (n <= 1) return [{ x, y, w: size, h: size }];
+// Arrange N photos inside a w×h window. Splits along the window's longer axis.
+function layout(n: number, x: number, y: number, w: number, h: number, gap: number): Rect[] {
+  if (n <= 1) return [{ x, y, w, h }];
+  const landscape = w >= h;
   if (n === 2) {
-    const w = (size - gap) / 2;
-    return [{ x, y, w, h: size }, { x: x + w + gap, y, w, h: size }];
+    if (landscape) {
+      const cw = (w - gap) / 2;
+      return [{ x, y, w: cw, h }, { x: x + cw + gap, y, w: cw, h }];
+    }
+    const ch = (h - gap) / 2;
+    return [{ x, y, w, h: ch }, { x, y: y + ch + gap, w, h: ch }];
   }
   if (n === 3) {
-    const bigW = (size - gap) * 0.6;
-    const smW = size - gap - bigW;
-    const smH = (size - gap) / 2;
+    if (landscape) {
+      const bigW = (w - gap) * 0.6;
+      const smW = w - gap - bigW;
+      const smH = (h - gap) / 2;
+      return [
+        { x, y, w: bigW, h },
+        { x: x + bigW + gap, y, w: smW, h: smH },
+        { x: x + bigW + gap, y: y + smH + gap, w: smW, h: smH },
+      ];
+    }
+    const bigH = (h - gap) * 0.6;
+    const smH = h - gap - bigH;
+    const smW = (w - gap) / 2;
     return [
-      { x, y, w: bigW, h: size },
-      { x: x + bigW + gap, y, w: smW, h: smH },
-      { x: x + bigW + gap, y: y + smH + gap, w: smW, h: smH },
+      { x, y, w, h: bigH },
+      { x, y: y + bigH + gap, w: smW, h: smH },
+      { x: x + smW + gap, y: y + bigH + gap, w: smW, h: smH },
     ];
   }
-  const c = (size - gap) / 2;
+  const cw = (w - gap) / 2;
+  const ch = (h - gap) / 2;
   return [
-    { x, y, w: c, h: c }, { x: x + c + gap, y, w: c, h: c },
-    { x, y: y + c + gap, w: c, h: c }, { x: x + c + gap, y: y + c + gap, w: c, h: c },
+    { x, y, w: cw, h: ch }, { x: x + cw + gap, y, w: cw, h: ch },
+    { x, y: y + ch + gap, w: cw, h: ch }, { x: x + cw + gap, y: y + ch + gap, w: cw, h: ch },
   ];
 }
 
@@ -117,11 +133,16 @@ export default function PhotoToolClient() {
     // Make sure the calligraphy font is ready before drawing text.
     try { await document.fonts.load(`700 100px ${FONT_FAMILY}`); } catch { /* fall back */ }
 
-    const W = 1080;
-    const margin = Math.round(W * 0.045);
-    const photoSize = W - margin * 2;
-    const bottomH = Math.round(W * 0.2);
-    const H = margin + photoSize + bottomH;
+    // Frame orientation follows the first photo: landscape -> 4:3, portrait -> 3:4.
+    const first = images[0].el;
+    const landscape = first.width >= first.height;
+    const pw = landscape ? 1200 : 900;
+    const ph = landscape ? 900 : 1200;
+
+    const margin = Math.round(pw * 0.05);
+    const bottomH = Math.round(pw * 0.18);
+    const W = pw + margin * 2;
+    const H = margin + ph + bottomH;
 
     canvas.width = W;
     canvas.height = H;
@@ -133,23 +154,25 @@ export default function PhotoToolClient() {
     ctx.fillRect(0, 0, W, H);
 
     // Photo(s).
-    const gap = Math.round(W * 0.012);
-    const rects = layout(images.length, margin, margin, photoSize, gap);
+    const gap = Math.round(pw * 0.012);
+    const rects = layout(images.length, margin, margin, pw, ph, gap);
     images.forEach((img, i) => {
       if (rects[i]) drawCover(ctx, img.el, rects[i]);
     });
 
-    // Studio name — tilted calligraphy in the bottom strip.
-    const fontSize = Math.round(bottomH * 0.5);
-    ctx.save();
-    ctx.translate(W / 2, margin + photoSize + bottomH / 2);
-    ctx.rotate((-4 * Math.PI) / 180);
+    // Studio name — straight (0°) calligraphy in the bottom strip, shrunk to fit.
+    let fontSize = Math.round(bottomH * 0.5);
     ctx.font = `700 ${fontSize}px ${FONT_FAMILY}`;
+    const maxTextW = W - margin * 2;
+    const textW = ctx.measureText(STUDIO_NAME).width;
+    if (textW > maxTextW) {
+      fontSize = Math.floor(fontSize * (maxTextW / textW));
+      ctx.font = `700 ${fontSize}px ${FONT_FAMILY}`;
+    }
     ctx.fillStyle = "#3a3a3a";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(STUDIO_NAME, 0, 0);
-    ctx.restore();
+    ctx.fillText(STUDIO_NAME, W / 2, margin + ph + bottomH / 2);
   }, [images]);
 
   useEffect(() => { draw(); }, [draw]);
@@ -243,7 +266,7 @@ export default function PhotoToolClient() {
         <div className="flex justify-center">
           <canvas
             ref={canvasRef}
-            className="max-w-xs w-full h-auto rounded-lg shadow-2xl"
+            className="max-w-md w-full h-auto rounded-lg shadow-2xl"
           />
         </div>
       )}
