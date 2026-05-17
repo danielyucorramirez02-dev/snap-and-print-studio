@@ -29,6 +29,15 @@ const SESSION_TYPES: { id: SessionType; emoji: string; label: string; desc: stri
 const STEPS_SELF_SHOOT: Step[] = ["type", "package", "additionals", "datetime", "info", "payment"];
 const STEPS_OTHER: Step[]      = ["type", "package", "datetime", "info", "payment"];
 
+// Milestone themes — each with its sample setup photo in /public/theme-photos.
+const MILESTONE_THEMES: { value: string; emoji: string; img: string }[] = [
+  { value: "Car",         emoji: "🚗", img: "/theme-photos/car.jpg" },
+  { value: "Jungle",      emoji: "🌿", img: "/theme-photos/jungle.jpg" },
+  { value: "Police",      emoji: "👮", img: "/theme-photos/police.jpg" },
+  { value: "Pink Castle", emoji: "🏰", img: "/theme-photos/pink-castle.jpg" },
+  { value: "Mermaid",     emoji: "🧜", img: "/theme-photos/mermaid.jpg" },
+];
+
 const GCASH_NUMBER = "09623028470";
 const GCASH_NAME   = "Daniel R.";
 
@@ -680,15 +689,32 @@ export default function BookingFlow({ services }: BookingFlowProps) {
             </div>
             <div className="space-y-1.5">
               <label className="text-charcoal-300 text-sm">Theme <span className="text-red-400">*</span></label>
-              <select value={milestoneTheme} onChange={(e) => setMilestoneTheme(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm focus:outline-none focus:border-brand-500">
-                <option value="">— Select a theme —</option>
-                <option value="Car">🚗 Car</option>
-                <option value="Jungle">🌿 Jungle</option>
-                <option value="Police">👮 Police</option>
-                <option value="Pink Castle">🏰 Pink Castle</option>
-                <option value="Mermaid">🧜 Mermaid</option>
-              </select>
+              <div className="grid grid-cols-2 gap-2">
+                {MILESTONE_THEMES.map((t) => {
+                  const selected = milestoneTheme === t.value;
+                  return (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => setMilestoneTheme(t.value)}
+                      className={`relative rounded-lg overflow-hidden border text-left transition-all duration-200 active:scale-[0.98] ${
+                        selected
+                          ? "border-brand-500 ring-2 ring-brand-500/40"
+                          : "border-charcoal-700 hover:border-brand-500/50"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={t.img} alt={t.value} className="w-full h-24 object-cover" />
+                      <div className="flex items-center justify-between gap-1 px-2.5 py-2 bg-charcoal-800">
+                        <span className={`text-xs font-medium ${selected ? "text-brand-300" : "text-charcoal-300"}`}>
+                          {t.emoji} {t.value}
+                        </span>
+                        {selected && <CheckCircle2 size={14} className="text-brand-400 shrink-0" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
               {errors.milestoneTheme && <p className="text-red-400 text-xs">{errors.milestoneTheme}</p>}
             </div>
           </>
