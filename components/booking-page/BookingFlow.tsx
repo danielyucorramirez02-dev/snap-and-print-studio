@@ -17,7 +17,7 @@ import {
 import { MESSENGER_URL } from "@/lib/studio";
 import type { Service } from "@/types";
 
-type Step = "type" | "package" | "additionals" | "datetime" | "info" | "payment" | "success";
+type Step = "type" | "theme" | "package" | "additionals" | "datetime" | "info" | "payment" | "success";
 type SessionType = "self-shoot" | "milestone" | "coverage";
 
 const SESSION_TYPES: { id: SessionType; emoji: string; label: string; desc: string }[] = [
@@ -27,7 +27,17 @@ const SESSION_TYPES: { id: SessionType; emoji: string; label: string; desc: stri
 ];
 
 const STEPS_SELF_SHOOT: Step[] = ["type", "package", "additionals", "datetime", "info", "payment"];
+const STEPS_MILESTONE: Step[]  = ["type", "theme", "package", "datetime", "info", "payment"];
 const STEPS_OTHER: Step[]      = ["type", "package", "datetime", "info", "payment"];
+
+// Milestone themes — each with its sample setup photo in /public/theme-photos.
+const MILESTONE_THEMES: { value: string; emoji: string; img: string }[] = [
+  { value: "Car",         emoji: "🚗", img: "/theme-photos/car.jpg" },
+  { value: "Jungle",      emoji: "🌿", img: "/theme-photos/jungle.jpg" },
+  { value: "Police",      emoji: "👮", img: "/theme-photos/police.jpg" },
+  { value: "Pink Castle", emoji: "🏰", img: "/theme-photos/pink-castle.jpg" },
+  { value: "Mermaid",     emoji: "🧜", img: "/theme-photos/mermaid.jpg" },
+];
 
 const GCASH_NUMBER = "09623028470";
 const GCASH_NAME   = "Daniel R.";
@@ -105,7 +115,10 @@ export default function BookingFlow({ services }: BookingFlowProps) {
   const isRequestBooking = sessionType === "milestone" || sessionType === "coverage";
   const studioHours = date && !isRequestBooking ? getStudioHoursForDate(date) : null;
 
-  const stepsForFlow = sessionType === "self-shoot" ? STEPS_SELF_SHOOT : STEPS_OTHER;
+  const stepsForFlow =
+    sessionType === "self-shoot" ? STEPS_SELF_SHOOT
+    : sessionType === "milestone" ? STEPS_MILESTONE
+    : STEPS_OTHER;
   const stepIndex = stepsForFlow.indexOf(step);
   const totalSteps = stepsForFlow.length;
 
@@ -171,7 +184,6 @@ export default function BookingFlow({ services }: BookingFlowProps) {
     if (sessionType === "milestone") {
       if (!celebrantName.trim()) e.celebrantName = "Celebrant name is required";
       if (!turningAge.trim()) e.turningAge = "Turning age is required";
-      if (!milestoneTheme.trim()) e.milestoneTheme = "Theme is required";
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -274,7 +286,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
             setSessionType(t.id);
             setSelectedService(null);
             setSelectedAddonIds(new Set());
-            setStep("package");
+            setStep(t.id === "milestone" ? "theme" : "package");
           }}
             className="group w-full flex items-center gap-4 p-4 rounded-xl bg-charcoal-900 border border-charcoal-700 hover:border-brand-500/60 hover:bg-brand-500/5 hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 ease-out text-left">
             <span className="text-3xl transition-transform duration-200 group-hover:scale-110">{t.emoji}</span>
@@ -288,10 +300,48 @@ export default function BookingFlow({ services }: BookingFlowProps) {
     </div>
   );
 
+  // ── Step: Theme (Milestone only) ──────────────────────────────────────────
+  if (step === "theme") return (
+    <div key="step-theme" className="animate-fade-in-up">
+      <button onClick={() => setStep("type")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
+        <ChevronLeft size={16} /> Back
+      </button>
+      <StepIndicator index={stepIndex} total={totalSteps} />
+      <h2 className="text-white font-semibold text-lg mb-1">Pick a theme</h2>
+      <p className="text-charcoal-400 text-sm mb-5">Choose the setup for your milestone shoot — tap one to continue</p>
+      <div className="grid grid-cols-2 gap-2.5">
+        {MILESTONE_THEMES.map((t) => {
+          const selected = milestoneTheme === t.value;
+          return (
+            <button
+              key={t.value}
+              type="button"
+              onClick={() => { setMilestoneTheme(t.value); setStep("package"); }}
+              className={`relative rounded-xl overflow-hidden border text-left transition-all duration-200 active:scale-[0.98] ${
+                selected
+                  ? "border-brand-500 ring-2 ring-brand-500/40"
+                  : "border-charcoal-700 hover:border-brand-500/50"
+              }`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={t.img} alt={t.value} className="w-full aspect-[4/3] object-cover" />
+              <div className="flex items-center justify-between gap-1 px-3 py-2.5 bg-charcoal-800">
+                <span className={`text-sm font-medium ${selected ? "text-brand-300" : "text-white"}`}>
+                  {t.emoji} {t.value}
+                </span>
+                {selected && <CheckCircle2 size={15} className="text-brand-400 shrink-0" />}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   // ── Step: Package ─────────────────────────────────────────────────────────
   if (step === "package") return (
     <div key="step-package" className="animate-fade-in-up">
-      <button onClick={() => setStep("type")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
+      <button onClick={() => setStep(sessionType === "milestone" ? "theme" : "type")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
       </button>
       <StepIndicator index={stepIndex} total={totalSteps} />
@@ -677,19 +727,6 @@ export default function BookingFlow({ services }: BookingFlowProps) {
               <input value={turningAge} onChange={(e) => setTurningAge(e.target.value)} placeholder="e.g. 7"
                 className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500" />
               {errors.turningAge && <p className="text-red-400 text-xs">{errors.turningAge}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-charcoal-300 text-sm">Theme <span className="text-red-400">*</span></label>
-              <select value={milestoneTheme} onChange={(e) => setMilestoneTheme(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm focus:outline-none focus:border-brand-500">
-                <option value="">— Select a theme —</option>
-                <option value="Car">🚗 Car</option>
-                <option value="Jungle">🌿 Jungle</option>
-                <option value="Police">👮 Police</option>
-                <option value="Pink Castle">🏰 Pink Castle</option>
-                <option value="Mermaid">🧜 Mermaid</option>
-              </select>
-              {errors.milestoneTheme && <p className="text-red-400 text-xs">{errors.milestoneTheme}</p>}
             </div>
           </>
         )}
