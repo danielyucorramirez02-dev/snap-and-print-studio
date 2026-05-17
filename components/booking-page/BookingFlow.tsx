@@ -36,6 +36,18 @@ const GCASH_NAME   = "Daniel R.";
 // Using UTC here could be off by a day near midnight Manila time.
 const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
 
+// Sample photo for each self-shoot package card. Files live in
+// /public/packages; returns null for packages without a photo.
+function packageImage(name: string): string | null {
+  const n = name.toLowerCase();
+  if (n.includes("solo")) return "/packages/solo-muna.jpg";
+  if (n.includes("pakner")) return "/packages/pakners.jpg";
+  if (n.includes("trio")) return "/packages/trio.jpg";
+  if (n.includes("tropa")) return "/packages/tropa-time.jpg";
+  if (n.includes("family")) return "/packages/family.jpg";
+  return null;
+}
+
 function StepIndicator({ index, total }: { index: number; total: number }) {
   if (index < 0) return null;
   return (
@@ -292,35 +304,46 @@ export default function BookingFlow({ services }: BookingFlowProps) {
         </div>
       )}
       <div className="space-y-3">
-        {filteredServices.map((s) => (
-          <button key={s.id} onClick={() => {
-            setSelectedService(s);
-            setSelectedAddonIds(new Set());
-            setDate("");
-            setTime("");
-            setSlots([]);
-            setStep(sessionType === "self-shoot" ? "additionals" : "datetime");
-          }}
-            className="w-full p-4 rounded-xl bg-charcoal-900 border border-charcoal-700 hover:border-brand-500/60 hover:bg-brand-500/5 hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 ease-out text-left">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-white font-semibold">{s.name}</p>
-                {s.description && <p className="text-charcoal-400 text-xs mt-0.5">{s.description}</p>}
-                <ul className="mt-2 space-y-0.5">
-                  {s.inclusions.map((inc, i) => (
-                    <li key={i} className="text-charcoal-400 text-xs flex items-center gap-1">
-                      <span className="text-brand-500">✓</span> {inc}
-                    </li>
-                  ))}
-                </ul>
+        {filteredServices.map((s) => {
+          const img = packageImage(s.name);
+          return (
+            <button key={s.id} onClick={() => {
+              setSelectedService(s);
+              setSelectedAddonIds(new Set());
+              setDate("");
+              setTime("");
+              setSlots([]);
+              setStep(sessionType === "self-shoot" ? "additionals" : "datetime");
+            }}
+              className="w-full p-4 rounded-xl bg-charcoal-900 border border-charcoal-700 hover:border-brand-500/60 hover:bg-brand-500/5 hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 ease-out text-left">
+              <div className="flex items-start gap-3">
+                {img && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={img}
+                    alt={s.name}
+                    className="w-24 h-32 rounded-lg object-cover shrink-0 border border-charcoal-700"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-white font-semibold">{s.name}</p>
+                  {s.description && <p className="text-charcoal-400 text-xs mt-0.5">{s.description}</p>}
+                  <ul className="mt-2 space-y-0.5">
+                    {s.inclusions.map((inc, i) => (
+                      <li key={i} className="text-charcoal-400 text-xs flex items-center gap-1">
+                        <span className="text-brand-500">✓</span> {inc}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-brand-400 font-bold text-lg">{formatPeso(s.price)}</p>
+                  <p className="text-charcoal-500 text-xs">{s.duration_minutes} min</p>
+                </div>
               </div>
-              <div className="shrink-0 text-right">
-                <p className="text-brand-400 font-bold text-lg">{formatPeso(s.price)}</p>
-                <p className="text-charcoal-500 text-xs">{s.duration_minutes} min</p>
-              </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
