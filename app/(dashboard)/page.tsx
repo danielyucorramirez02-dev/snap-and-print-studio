@@ -5,6 +5,7 @@ import {
   CalendarClock, BellRing, Wallet, ChevronRight, CheckCircle2, CalendarRange,
 } from "lucide-react";
 import { formatDate, formatTime, formatPeso } from "@/lib/utils/formatters";
+import TodayPostCard from "@/components/dashboard/TodayPostCard";
 import type { Booking } from "@/types";
 
 const PAYMENT_BADGE: Record<string, string> = {
@@ -122,6 +123,19 @@ export default async function DashboardHomePage() {
   );
   const outstandingTotal = outstanding.reduce((sum, b) => sum + b.balance, 0);
 
+  // Posting streak — rolling 7-day window (the daily-post KPI).
+  const weekAgoDate = new Date(today);
+  weekAgoDate.setUTCDate(weekAgoDate.getUTCDate() - 6);
+  const weekAgo = weekAgoDate.toISOString().split("T")[0];
+
+  const { data: postsData } = await supabase
+    .from("studio_posts")
+    .select("posted_on")
+    .gte("posted_on", weekAgo);
+  const posts = postsData ?? [];
+  const postsThisWeek = posts.length;
+  const postedToday = posts.some((p) => p.posted_on === today);
+
   return (
     <div className="space-y-6">
       {/* Greeting */}
@@ -153,6 +167,9 @@ export default async function DashboardHomePage() {
           accent="bg-green-500/10 text-green-400 border border-green-500/20"
         />
       </div>
+
+      {/* Today's post — daily-post ritual nudge */}
+      <TodayPostCard postedToday={postedToday} postsThisWeek={postsThisWeek} />
 
       {/* Today's sessions */}
       <SectionCard title="Today's Sessions" count={todaysSessions.length}>
