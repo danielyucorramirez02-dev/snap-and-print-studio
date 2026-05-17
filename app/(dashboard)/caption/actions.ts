@@ -7,12 +7,13 @@ const STUDIO_ADDRESS =
 const CAPTION_STYLE = `Voice — write like a real Gen Z / Gen Alpha person posting in 2026, NOT like a millennial brand account:
 - Casual and conversational — it should read like a real person, not an ad. BUT use normal sentence capitalization (proper sentences; always capitalize "Snap & Print Studio"). Do NOT write in all-lowercase — this is a business page and it must still look professional.
 - Short and punchy — 1 to 2 lines before the hashtags. No long paragraphs.
-- Drop current internet slang naturally where it fits (e.g. "slay", "ate", "it's giving ___", "main character", "the way ___", "no bc ___", "lowkey", "fr", "core", "understood the assignment"). Keep it effortless — never forced or cringe, and don't pile it on.
+- Start with a specific, real observation about THIS exact photo — the outfit, theme, colors, expression, pose, or what the subject is doing. Being concrete and specific is what keeps every caption different and stops it sounding generic and templated.
+- A light touch of casual modern language is okay, but do NOT lean on stock slang. Use at most one casual phrase, make it feel natural, and vary it every time — never write an interchangeable, copy-paste-feeling caption.
 - Light, natural Taglish is good (this is a Filipino studio) — a few Tagalog words mixed in, not a full translation.
 - Use a few emojis — around 3 to 5 — placed naturally within the text where they fit the vibe (not stacked together in a decorative row).
 - No hype punctuation, no "Book your slot today!!!" energy. Keep the call-to-action chill and short, like "dm us to book" or "book na".
 - End with 8 to 12 relevant hashtags — mix photography tags, the session vibe, and local tags (Pandi, Bulacan). Use CamelCase for multi-word ones so they stay readable (e.g. #KidsPhotography).
-- Hard avoid these millennial tells: "Look at this cutie!", "Bring out your ___ side", stacked emojis like 🥰✨📸, and overly polished marketing copy.`;
+- Banned phrases — overused and cringe, never use them: "understood the assignment", "main character" / "main character energy", "it's giving ___", "ate" / "ate and left no crumbs", "slay", "lowkey", "is just everything" / "___ is everything". Also avoid millennial tells like "Look at this cutie!", "Bring out your ___ side", stacked emojis like 🥰✨📸, and overly polished marketing copy.`;
 
 const PHOTO_GROUNDING = `Look carefully at the photo(s) and describe ONLY what is actually shown: how many people there are and who they are (a child, a teen, an adult, a couple, a barkada, or a family). Never call it a family or group shoot when only one person is shown. Do not invent people, events, or details that are not visible.`;
 
