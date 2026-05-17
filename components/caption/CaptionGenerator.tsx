@@ -62,9 +62,9 @@ export default function CaptionGenerator() {
   // Pick up photos handed over from the Instax Maker's "Generate caption" button.
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem("sp-caption-handoff");
+      const raw = localStorage.getItem("sp-caption-handoff");
       if (!raw) return;
-      sessionStorage.removeItem("sp-caption-handoff");
+      localStorage.removeItem("sp-caption-handoff");
       const incoming = JSON.parse(raw) as string[];
       if (Array.isArray(incoming) && incoming.length > 0) {
         setImages(

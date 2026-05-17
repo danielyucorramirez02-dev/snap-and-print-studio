@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Upload, Download, X, ImagePlus, Sparkles, RotateCcw, Loader2 } from "lucide-react";
 
 const STUDIO_NAME = "Snap & Print Studio";
@@ -253,7 +252,7 @@ async function renderWithLogo(photo: LoadedImage, pos: LogoPosition): Promise<st
 }
 
 // Re-encode a finished PNG as a smaller JPEG so a whole batch of them fits
-// inside sessionStorage when handed off to the caption generator.
+// inside localStorage when handed off to the caption generator.
 function downscaleForCaption(dataUrl: string, maxDim = 1100): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -273,7 +272,6 @@ function downscaleForCaption(dataUrl: string, maxDim = 1100): Promise<string> {
 }
 
 export default function PhotoToolClient() {
-  const router = useRouter();
   const [images, setImages] = useState<LoadedImage[]>([]);   // uploaded photos
   const [style, setStyle] = useState<OutputStyle>("instax"); // Instax card, or photo + logo
   const [mode, setMode] = useState<FrameMode>("each");        // (Instax) frame each, or one collage
@@ -364,7 +362,8 @@ export default function PhotoToolClient() {
     }
   };
 
-  // Hand the finished photos to the caption generator on the /caption page.
+  // Hand the finished photos to the caption generator. Opens in a NEW tab so
+  // this page keeps its rendered photos — they stay downloadable here.
   const generateCaption = async () => {
     if (results.length === 0) return;
     setBusy(true);
@@ -373,10 +372,12 @@ export default function PhotoToolClient() {
       const small = await Promise.all(
         results.slice(0, MAX_CAPTION_IMAGES).map((r) => downscaleForCaption(r.dataUrl))
       );
-      sessionStorage.setItem("sp-caption-handoff", JSON.stringify(small));
-      router.push("/caption");
+      // localStorage so the handoff reaches the new tab reliably.
+      localStorage.setItem("sp-caption-handoff", JSON.stringify(small));
+      window.open("/caption", "_blank");
     } catch {
       setError("Could not prepare the photos for the caption generator.");
+    } finally {
       setBusy(false);
     }
   };
@@ -577,6 +578,9 @@ export default function PhotoToolClient() {
                 <Sparkles size={16} />
                 Generate caption for this post
               </button>
+              <p className="basis-full text-charcoal-500 text-xs">
+                The caption opens in a new tab — your photos stay here so you can still download them.
+              </p>
             </div>
           )}
         </div>
