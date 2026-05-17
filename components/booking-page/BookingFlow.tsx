@@ -704,7 +704,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
                       }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={t.img} alt={t.value} className="w-full h-24 object-cover" />
+                      <img src={t.img} alt={t.value} className="w-full aspect-[4/3] object-cover" />
                       <div className="flex items-center justify-between gap-1 px-2.5 py-2 bg-charcoal-800">
                         <span className={`text-xs font-medium ${selected ? "text-brand-300" : "text-charcoal-300"}`}>
                           {t.emoji} {t.value}
