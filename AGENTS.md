@@ -96,6 +96,7 @@ Migration files live in the repo root:
 - `supabase-migration-v7.sql`
 - `supabase-fix-trigger.sql`
 - `supabase-services-seed.sql`
+- `supabase-content-bank-starter-seed.sql`
 
 Do not assume production has a migration applied. If a feature depends on schema changes, say which SQL file Daniel needs to run in Supabase.
 
@@ -105,6 +106,7 @@ Known migration state from the Claude-era decision log:
 - `supabase-migration-v5.sql` was run by Daniel on 2026-05-18 for the `studio_posts` table and RLS.
 - `supabase-migration-v6.sql` was run by Daniel on 2026-05-18. It hardens public booking reads with token/schedule RPCs.
 - `supabase-migration-v7.sql` adds the lightweight `content_bank` table for post ideas and reusable content tracking.
+- `supabase-content-bank-starter-seed.sql` is optional starter data for `/content`; it is safe to rerun because it skips existing titles.
 - The booking app Supabase DB is the source of truth for bookings and revenue.
 - GCash remains manually verified; there is no personal GCash API integration.
 - Google Sheets sync exists in the app flow; Google Drive folder-per-booking is deferred.
