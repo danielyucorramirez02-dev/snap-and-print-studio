@@ -119,4 +119,48 @@
   .animate-soft-pulse {
     animation: soft-pulse 2s ease-in-out infinite;
   }
+
+  @keyframes rainbow-cursor-fade {
+    0% {
+      opacity: 0.95;
+      transform: translate(-50%, -50%) scale(0.45);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(1.9);
+    }
+  }
+
+  .auth-rainbow-cursor {
+    cursor: crosshair;
+  }
+
+  .auth-rainbow-cursor a,
+  .auth-rainbow-cursor button,
+  .auth-rainbow-cursor input {
+    cursor: pointer;
+  }
+
+  .rainbow-cursor-dot {
+    position: fixed;
+    z-index: 9999;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+    border-radius: 9999px;
+    background:
+      radial-gradient(circle, hsla(var(--cursor-hue), 84%, 62%, 0.78) 0%, hsla(var(--cursor-hue), 84%, 62%, 0.22) 42%, transparent 72%);
+    mix-blend-mode: multiply;
+    animation: rainbow-cursor-fade 650ms ease-out forwards;
+  }
+
+  @media (prefers-reduced-motion: reduce), (pointer: coarse) {
+    .auth-rainbow-cursor {
+      cursor: auto;
+    }
+
+    .rainbow-cursor-dot {
+      display: none;
+    }
+  }
 }

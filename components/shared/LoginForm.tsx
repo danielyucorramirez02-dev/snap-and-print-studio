@@ -43,9 +43,9 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
       <div className="space-y-2">
-        <Label htmlFor="email" className="text-charcoal-100">
+        <Label htmlFor="email" className="text-charcoal-700">
           Email Address
         </Label>
         <Input
@@ -53,42 +53,43 @@ export default function LoginForm() {
           type="email"
           placeholder="owner@snapandprint.com"
           autoComplete="email"
-          className="bg-charcoal-800 border-charcoal-600 text-white placeholder:text-charcoal-400 focus-visible:ring-brand-500"
+          className="h-10 border-charcoal-950/15 bg-white/85 text-charcoal-950 shadow-sm transition-all duration-200 placeholder:text-charcoal-400 focus-visible:border-[#43b8b2]/50 focus-visible:ring-[#43b8b2]/35"
           {...register("email")}
         />
         {errors.email && (
-          <p className="text-sm text-red-400">{errors.email.message}</p>
+          <p className="text-sm text-red-600">{errors.email.message}</p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password" className="text-charcoal-100">
+        <Label htmlFor="password" className="text-charcoal-700">
           Password
         </Label>
         <div className="relative">
           <Input
             id="password"
             type={showPassword ? "text" : "password"}
-            placeholder="••••••••"
+            placeholder="Password"
             autoComplete="current-password"
-            className="bg-charcoal-800 border-charcoal-600 text-white placeholder:text-charcoal-400 focus-visible:ring-brand-500 pr-10"
+            className="h-10 border-charcoal-950/15 bg-white/85 pr-10 text-charcoal-950 shadow-sm transition-all duration-200 placeholder:text-charcoal-400 focus-visible:border-[#43b8b2]/50 focus-visible:ring-[#43b8b2]/35"
             {...register("password")}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-charcoal-400 hover:text-charcoal-200"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-charcoal-400 transition-colors hover:bg-charcoal-950/5 hover:text-charcoal-700"
+            aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
         {errors.password && (
-          <p className="text-sm text-red-400">{errors.password.message}</p>
+          <p className="text-sm text-red-600">{errors.password.message}</p>
         )}
       </div>
 
       {serverError && (
-        <div className="rounded-md bg-red-900/30 border border-red-700 px-4 py-3 text-sm text-red-300">
+        <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700">
           {serverError}
         </div>
       )}
@@ -96,12 +97,12 @@ export default function LoginForm() {
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold h-11"
+        className="h-10 w-full bg-charcoal-950 font-semibold text-white shadow-lg shadow-charcoal-950/15 transition-all duration-300 hover:-translate-y-0.5 hover:bg-charcoal-900 hover:shadow-xl hover:shadow-[#43b8b2]/15"
       >
         {isSubmitting ? (
           <>
             <Loader2 size={16} className="animate-spin" />
-            Signing in…
+            Signing in...
           </>
         ) : (
           "Sign In"
