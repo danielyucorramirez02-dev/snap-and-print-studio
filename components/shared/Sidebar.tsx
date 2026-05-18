@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import StudioLogo from "@/components/shared/StudioLogo";
-import { X, LayoutDashboard, CalendarDays, CreditCard, Package, BarChart3, Images, Receipt, Layers, Settings, Sparkles, PlusCircle, Frame } from "lucide-react";
+import { X, LayoutDashboard, CalendarDays, CreditCard, Package, BarChart3, Images, Receipt, Layers, Settings, Sparkles, PlusCircle, Frame, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/types";
 
@@ -16,6 +16,7 @@ const navItems = [
   { href: "/inventory", label: "Inventory",          icon: Package,      roles: ["owner", "staff"] as UserRole[] },
   { href: "/reports",   label: "Reports",            icon: BarChart3,    roles: ["owner"] as UserRole[] },
   { href: "/gallery",   label: "Client Gallery",     icon: Images,       roles: ["owner", "staff"] as UserRole[] },
+  { href: "/content",   label: "Content Bank",       icon: ClipboardList, roles: ["owner", "staff"] as UserRole[] },
   { href: "/caption",   label: "Caption Generator",  icon: Sparkles,     roles: ["owner", "staff"] as UserRole[] },
   { href: "/photo-tool", label: "Instax Maker",      icon: Frame,        roles: ["owner", "staff"] as UserRole[] },
   { href: "/expenses",  label: "Expenses",           icon: Receipt,      roles: ["owner"] as UserRole[] },

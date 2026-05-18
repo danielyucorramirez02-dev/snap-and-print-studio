@@ -2,11 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
-  CalendarClock, BellRing, Wallet, ChevronRight, CheckCircle2, CalendarRange,
+  CalendarClock, BellRing, Wallet, ChevronRight, CheckCircle2, CalendarRange, ClipboardList,
 } from "lucide-react";
 import { formatDate, formatTime, formatPeso } from "@/lib/utils/formatters";
 import TodayPostCard from "@/components/dashboard/TodayPostCard";
-import type { Booking } from "@/types";
+import type { Booking, ContentBankItem } from "@/types";
 
 const PAYMENT_BADGE: Record<string, string> = {
   paid: "bg-green-500/15 text-green-400 border-green-500/25",
@@ -136,6 +136,16 @@ export default async function DashboardHomePage() {
   const postsThisWeek = posts.length;
   const postedToday = posts.some((p) => p.posted_on === today);
 
+  const { data: contentData } = await supabase
+    .from("content_bank")
+    .select("*")
+    .neq("status", "posted")
+    .order("target_date", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(4);
+  const contentItems = (contentData ?? []) as ContentBankItem[];
+  const readyContent = contentItems.filter((item) => item.status === "edited" || item.status === "captioned").length;
+
   return (
     <div className="space-y-6">
       {/* Greeting */}
@@ -170,6 +180,46 @@ export default async function DashboardHomePage() {
 
       {/* Today's post — daily-post ritual nudge */}
       <TodayPostCard postedToday={postedToday} postsThisWeek={postsThisWeek} />
+
+      <SectionCard title="Content Bank" count={contentItems.length}>
+        {contentItems.length === 0 ? (
+          <div className="px-4 py-5">
+            <div className="flex items-center gap-2 text-charcoal-500 text-sm">
+              <ClipboardList size={15} className="text-brand-500/70 shrink-0" />
+              Add reusable post ideas so daily-post has material ready.
+            </div>
+            <Link
+              href="/content"
+              className="mt-3 inline-flex items-center gap-1 text-brand-400 text-sm font-medium hover:text-brand-300"
+            >
+              Start the content bank <ChevronRight size={15} />
+            </Link>
+          </div>
+        ) : (
+          <>
+            <div className="px-4 py-3 border-b border-charcoal-800">
+              <p className="text-charcoal-400 text-xs">
+                {readyContent} ready item{readyContent !== 1 ? "s" : ""} · build toward 10 reusable posts
+              </p>
+            </div>
+            {contentItems.map((item) => (
+              <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3 border-t border-charcoal-800 first:border-t-0">
+                <div className="min-w-0">
+                  <p className="text-white text-sm font-medium truncate">{item.title}</p>
+                  <p className="text-charcoal-500 text-xs capitalize">{item.status.replace("-", " ")} · {item.post_type.replace("-", " ")}</p>
+                </div>
+                {item.target_date && <span className="text-xs text-charcoal-500 shrink-0">{formatDate(item.target_date)}</span>}
+              </div>
+            ))}
+            <Link
+              href="/content"
+              className="flex items-center justify-center gap-1 px-4 py-3 border-t border-charcoal-800 text-brand-400 text-sm font-medium hover:bg-charcoal-800/60 transition-colors"
+            >
+              Open content bank <ChevronRight size={15} />
+            </Link>
+          </>
+        )}
+      </SectionCard>
 
       {/* Today's sessions */}
       <SectionCard title="Today's Sessions" count={todaysSessions.length}>

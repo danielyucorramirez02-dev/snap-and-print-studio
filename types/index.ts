@@ -8,6 +8,23 @@ export type PaymentMethod = "cash" | "gcash" | "bank";
 
 export type ExpenseCategory = "supplies" | "utilities" | "equipment" | "other";
 
+export type ContentPostType =
+  | "fresh-shoot"
+  | "open-slots"
+  | "package-highlight"
+  | "behind-the-scenes"
+  | "client-love"
+  | "throwback"
+  | "promo";
+
+export type ContentStatus =
+  | "idea"
+  | "needs-shoot"
+  | "shot"
+  | "edited"
+  | "captioned"
+  | "posted";
+
 export interface Profile {
   id: string;
   full_name: string;
@@ -100,4 +117,19 @@ export interface Expense {
   receipt_url: string | null;
   recorded_by: string;
   created_at: string;
+}
+
+export interface ContentBankItem {
+  id: string;
+  title: string;
+  post_type: ContentPostType;
+  status: ContentStatus;
+  target_date: string | null;
+  asset_note: string | null;
+  photo_url: string | null;
+  caption_draft: string | null;
+  posted_on: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
