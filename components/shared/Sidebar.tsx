@@ -50,13 +50,18 @@ export default function Sidebar({ userRole, isOpen = false, onClose }: SidebarPr
       )}>
         {/* Logo / Brand */}
         <div className="flex items-center justify-between px-5 py-5 border-b border-charcoal-800">
-          <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            onClick={onClose}
+            className="flex items-center gap-3 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-400/60"
+            aria-label="Go to dashboard"
+          >
             <StudioLogo size={36} className="shrink-0" />
             <div>
               <p className="text-sm font-bold text-white leading-tight">Snap &amp; Print</p>
               <p className="text-xs text-charcoal-400">Studio</p>
             </div>
-          </div>
+          </Link>
           <button
             onClick={onClose}
             className="lg:hidden text-charcoal-400 hover:text-white transition-colors p-1"
