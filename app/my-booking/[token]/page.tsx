@@ -23,11 +23,19 @@ export default async function MyBookingPage({ params }: { params: Promise<{ toke
   const { token } = await params;
   const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("bookings")
-    .select("*, service:services(name, price, inclusions, duration_minutes)")
-    .eq("booking_token", token)
+  const { data: rpcData, error: rpcError } = await supabase
+    .rpc("public_get_booking_by_token", { p_token: token })
     .single();
+
+  const { data: fallbackData } = rpcError
+    ? await supabase
+        .from("bookings")
+        .select("*, service:services(name, price, inclusions, duration_minutes)")
+        .eq("booking_token", token)
+        .single()
+    : { data: null };
+
+  const data = rpcData ?? fallbackData;
 
   if (!data) notFound();
   const booking = data as unknown as Booking;

@@ -42,6 +42,37 @@ async function fetchSelfShootCap(
   return (data?.max_self_shoots_per_day as number | null) ?? null;
 }
 
+type PublicBookingSlot = {
+  id: string;
+  booking_time: string;
+  booking_status: string;
+  service: {
+    name?: string;
+    category: string | null;
+    duration_minutes?: number;
+  } | null;
+};
+
+async function fetchPublicBookingsForDate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  dateStr: string
+): Promise<PublicBookingSlot[]> {
+  const { data: rpcData, error: rpcError } = await supabase
+    .rpc("public_get_bookings_for_date", { p_date: dateStr });
+
+  if (!rpcError && rpcData) {
+    return rpcData as PublicBookingSlot[];
+  }
+
+  const { data } = await supabase
+    .from("bookings")
+    .select("id, booking_time, booking_status, service:services!package_id(name, category, duration_minutes)")
+    .eq("booking_date", dateStr)
+    .neq("booking_status", "cancelled");
+
+  return (data ?? []) as unknown as PublicBookingSlot[];
+}
+
 export async function getServicesForBooking(): Promise<Service[]> {
   const supabase = await createClient();
   const { data } = await supabase
@@ -75,14 +106,15 @@ export async function getAvailableSlots(
   }
 
   // Pending bookings also hold their slot — staff has not rejected them yet.
-  const { data: bookings } = await supabase
-    .from("bookings")
-    .select("*, service:services(*)")
-    .eq("booking_date", dateStr)
-    .in("booking_status", ["pending", "confirmed"])
-    .eq("service.category", "self-shoot");
-
-  const heldBookings = (bookings ?? []) as Booking[];
+  const heldBookings = (await fetchPublicBookingsForDate(supabase, dateStr))
+    .filter((b) => ["pending", "confirmed"].includes(b.booking_status))
+    .filter((b) => b.service?.category === "self-shoot")
+    .map((b) => ({
+      ...b,
+      service: b.service
+        ? { ...b.service, price: 0, inclusions: [], is_active: true, created_at: "" }
+        : undefined,
+    })) as unknown as Booking[];
 
   const cap = await fetchSelfShootCap(supabase);
   if (isDailyCapReached(heldBookings.length, cap)) {
@@ -104,15 +136,7 @@ export async function getBookedMilestoneSlots(
     return { booked: [], closed: true, closedReason: block.reason };
   }
 
-  const { data } = await supabase
-    .from("bookings")
-    .select("booking_time, service:services!package_id(category)")
-    .eq("booking_date", dateStr)
-    .neq("booking_status", "cancelled");
-
-  if (!data) return { booked: [], closed: false };
-
-  const booked = (data as unknown as { booking_time: string; service: { category: string } | null }[])
+  const booked = (await fetchPublicBookingsForDate(supabase, dateStr))
     .filter((b) => b.service?.category === "milestone" || b.service?.category === "coverage")
     .map((b) => b.booking_time.substring(0, 5));
 
@@ -155,16 +179,10 @@ export async function createPublicBooking(input: {
   }
 
   if (service.category === "self-shoot") {
-    const { data: sameDayBookings } = await supabase
-      .from("bookings")
-      .select("id, service:services(category)")
-      .eq("booking_date", input.date)
-      .in("booking_status", ["pending", "confirmed"]);
-
-    const selfShootCount = (sameDayBookings ?? []).filter((b) => {
-      const svc = Array.isArray(b.service) ? b.service[0] : b.service;
-      return svc?.category === "self-shoot";
-    }).length;
+    const selfShootCount = (await fetchPublicBookingsForDate(supabase, input.date))
+      .filter((b) => ["pending", "confirmed"].includes(b.booking_status))
+      .filter((b) => b.service?.category === "self-shoot")
+      .length;
 
     const cap = await fetchSelfShootCap(supabase);
     if (isDailyCapReached(selfShootCount, cap)) {
