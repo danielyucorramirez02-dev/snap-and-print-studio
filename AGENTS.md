@@ -102,7 +102,7 @@ Known migration state from the Claude-era decision log:
 
 - V2 production app shipped on 2026-05-16.
 - `supabase-migration-v5.sql` was run by Daniel on 2026-05-18 for the `studio_posts` table and RLS.
-- `supabase-migration-v6.sql` hardens public booking reads with token/schedule RPCs. Apply after deploying code that can call the RPCs.
+- `supabase-migration-v6.sql` was run by Daniel on 2026-05-18. It hardens public booking reads with token/schedule RPCs.
 - The booking app Supabase DB is the source of truth for bookings and revenue.
 - GCash remains manually verified; there is no personal GCash API integration.
 - Google Sheets sync exists in the app flow; Google Drive folder-per-booking is deferred.
