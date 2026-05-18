@@ -32,8 +32,8 @@ function StatTile({
   accent: string;
 }) {
   return (
-    <div className="rounded-xl bg-charcoal-900 border border-charcoal-700 p-4">
-      <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${accent}`}>
+    <div className="rounded-lg border border-white/10 bg-[#211f1b]/90 p-4 shadow-sm shadow-black/10 transition-colors hover:border-white/15 hover:bg-[#24221e]">
+      <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-md ${accent}`}>
         <Icon size={18} />
       </div>
       <p className="text-2xl font-bold text-white leading-none">{value}</p>
@@ -44,7 +44,7 @@ function StatTile({
 
 function BookingRow({ booking, showDate }: { booking: Booking; showDate?: boolean }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-t border-charcoal-800 first:border-t-0">
+    <div className="flex items-center gap-3 border-t border-white/10 px-4 py-3 first:border-t-0">
       <div className="w-16 shrink-0 text-center">
         <p className="text-sm font-semibold text-brand-400">{formatTime(booking.booking_time)}</p>
         {showDate && (
@@ -70,8 +70,8 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl bg-charcoal-900 border border-charcoal-700 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-charcoal-800">
+    <div className="overflow-hidden rounded-lg border border-white/10 bg-[#211f1b]/90 shadow-sm shadow-black/10">
+      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
         <h2 className="text-sm font-semibold text-white">{title}</h2>
         {count !== undefined && count > 0 && (
           <span className="text-xs font-semibold text-charcoal-400">{count}</span>
@@ -149,15 +149,15 @@ export default async function DashboardHomePage() {
   return (
     <div className="space-y-6">
       {/* Greeting */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">{greeting}, {firstName}!</h1>
+      <div className="rounded-lg border border-white/10 bg-[#211f1b]/75 p-5 shadow-sm shadow-black/10">
+        <h1 className="text-2xl font-bold text-white sm:text-3xl">{greeting}, {firstName}!</h1>
         <p className="text-charcoal-400 text-sm mt-0.5">
           {formatDate(today)} · Here&apos;s your studio at a glance.
         </p>
       </div>
 
       {/* Stat tiles */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid gap-3 sm:grid-cols-3">
         <StatTile
           icon={CalendarClock}
           label="Sessions today"
@@ -197,13 +197,13 @@ export default async function DashboardHomePage() {
           </div>
         ) : (
           <>
-            <div className="px-4 py-3 border-b border-charcoal-800">
+            <div className="border-b border-white/10 px-4 py-3">
               <p className="text-charcoal-400 text-xs">
                 {readyContent} ready item{readyContent !== 1 ? "s" : ""} · build toward 10 reusable posts
               </p>
             </div>
             {contentItems.map((item) => (
-              <div key={item.id} className="flex items-center justify-between gap-3 px-4 py-3 border-t border-charcoal-800 first:border-t-0">
+              <div key={item.id} className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3 first:border-t-0">
                 <div className="min-w-0">
                   <p className="text-white text-sm font-medium truncate">{item.title}</p>
                   <p className="text-charcoal-500 text-xs capitalize">{item.status.replace("-", " ")} · {item.post_type.replace("-", " ")}</p>
@@ -213,7 +213,7 @@ export default async function DashboardHomePage() {
             ))}
             <Link
               href="/content"
-              className="flex items-center justify-center gap-1 px-4 py-3 border-t border-charcoal-800 text-brand-400 text-sm font-medium hover:bg-charcoal-800/60 transition-colors"
+              className="flex items-center justify-center gap-1 border-t border-white/10 px-4 py-3 text-sm font-medium text-brand-400 transition-colors hover:bg-white/[0.045]"
             >
               Open content bank <ChevronRight size={15} />
             </Link>
@@ -241,7 +241,7 @@ export default async function DashboardHomePage() {
             ))}
             <Link
               href="/payments"
-              className="flex items-center justify-center gap-1 px-4 py-3 border-t border-charcoal-800 text-brand-400 text-sm font-medium hover:bg-charcoal-800/60 transition-colors"
+              className="flex items-center justify-center gap-1 border-t border-white/10 px-4 py-3 text-sm font-medium text-brand-400 transition-colors hover:bg-white/[0.045]"
             >
               Review &amp; approve in Payments <ChevronRight size={15} />
             </Link>
@@ -258,7 +258,7 @@ export default async function DashboardHomePage() {
             {upcoming.map((b) => <BookingRow key={b.id} booking={b} showDate />)}
             <Link
               href="/calendar"
-              className="flex items-center justify-center gap-1 px-4 py-3 border-t border-charcoal-800 text-brand-400 text-sm font-medium hover:bg-charcoal-800/60 transition-colors"
+              className="flex items-center justify-center gap-1 border-t border-white/10 px-4 py-3 text-sm font-medium text-brand-400 transition-colors hover:bg-white/[0.045]"
             >
               <CalendarRange size={15} /> Open the full calendar
             </Link>

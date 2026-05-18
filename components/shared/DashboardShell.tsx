@@ -15,20 +15,22 @@ export default function DashboardShell({ children, fullName, role }: DashboardSh
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-charcoal-950">
+    <div className="flex min-h-screen bg-[#141310] text-white">
       <Sidebar
         userRole={role}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex min-w-0 flex-col">
         <Header
           fullName={fullName}
           role={role}
           onMenuToggle={() => setSidebarOpen(true)}
         />
-        <main className="flex-1 p-4 lg:p-6 overflow-auto">
-          {children}
+        <main className="flex-1 overflow-auto bg-[linear-gradient(180deg,#1d1b17_0%,#141310_260px)] px-4 py-5 sm:px-5 lg:px-7 lg:py-7">
+          <div className="mx-auto w-full max-w-7xl">
+            {children}
+          </div>
         </main>
       </div>
     </div>

@@ -8,16 +8,16 @@ import { createClient } from "@/lib/supabase/client";
 import type { UserRole } from "@/types";
 
 const PAGE_TITLES: Record<string, string> = {
-  "/calendar":  "Calendar",
-  "/payments":  "Payments",
-  "/services":  "Services",
+  "/calendar": "Calendar",
+  "/payments": "Payments",
+  "/services": "Services",
   "/inventory": "Inventory",
-  "/reports":   "Reports",
-  "/gallery":   "Client Gallery",
-  "/content":   "Content Bank",
-  "/caption":   "Caption Generator",
-  "/expenses":  "Expenses",
-  "/settings":  "Settings",
+  "/reports": "Reports",
+  "/gallery": "Client Gallery",
+  "/content": "Content Bank",
+  "/caption": "Caption Generator",
+  "/expenses": "Expenses",
+  "/settings": "Settings",
 };
 
 interface HeaderProps {
@@ -39,32 +39,34 @@ export default function Header({ fullName, role, onMenuToggle }: HeaderProps) {
   }
 
   return (
-    <header className="h-16 border-b border-charcoal-800 bg-charcoal-950/50 backdrop-blur-sm flex items-center justify-between px-4 lg:px-6 shrink-0">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-[#181713]/85 px-4 shadow-sm shadow-black/10 backdrop-blur-xl lg:px-7">
       <div className="flex items-center gap-3">
-        {/* Hamburger — mobile only */}
         <button
           onClick={onMenuToggle}
-          className="lg:hidden text-charcoal-400 hover:text-white transition-colors p-1"
+          className="rounded-md p-2 text-charcoal-400 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
           aria-label="Open menu"
         >
           <Menu size={22} />
         </button>
-        <h1 className="text-base lg:text-lg font-semibold text-white">{pageTitle}</h1>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-400/80">Studio OS</p>
+          <h1 className="text-base font-semibold text-white lg:text-lg">{pageTitle}</h1>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-brand-500/20 border border-brand-500/30 flex items-center justify-center shrink-0">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-brand-400/30 bg-brand-500/15 shadow-sm shadow-brand-950/20">
             <User size={15} className="text-brand-400" />
           </div>
           <div className="hidden sm:block">
-            <p className="text-sm font-medium text-white leading-tight">{fullName}</p>
+            <p className="text-sm font-medium leading-tight text-white">{fullName}</p>
             <Badge
               variant={role === "owner" ? "default" : "secondary"}
               className={
                 role === "owner"
-                  ? "text-[10px] px-1.5 py-0 bg-brand-500/20 text-brand-400 border-brand-500/30"
-                  : "text-[10px] px-1.5 py-0"
+                  ? "border-brand-500/30 bg-brand-500/20 px-1.5 py-0 text-[10px] text-brand-400"
+                  : "px-1.5 py-0 text-[10px]"
               }
             >
               {role === "owner" ? "Owner" : "Staff"}
@@ -76,7 +78,7 @@ export default function Header({ fullName, role, onMenuToggle }: HeaderProps) {
           variant="ghost"
           size="icon"
           onClick={handleLogout}
-          className="text-charcoal-400 hover:text-white hover:bg-charcoal-800"
+          className="text-charcoal-400 hover:bg-white/5 hover:text-white"
           title="Sign out"
         >
           <LogOut size={18} />

@@ -55,6 +55,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background: rgba(228, 169, 36, 0.28);
+    color: #fff;
   }
 }
 

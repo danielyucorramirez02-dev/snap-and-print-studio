@@ -23,6 +23,11 @@ const navItems = [
   { href: "/settings",  label: "Settings",           icon: Settings,     roles: ["owner"] as UserRole[] },
 ];
 
+const roleLabel: Record<UserRole, string> = {
+  owner: "Owner workspace",
+  staff: "Staff workspace",
+};
+
 interface SidebarProps {
   userRole: UserRole;
   isOpen?: boolean;
@@ -45,34 +50,37 @@ export default function Sidebar({ userRole, isOpen = false, onClose }: SidebarPr
 
       {/* Sidebar panel */}
       <aside className={cn(
-        "fixed top-0 left-0 bottom-0 z-50 w-64 bg-charcoal-950 border-r border-charcoal-800 flex flex-col transition-transform duration-200 ease-in-out",
+        "fixed bottom-0 left-0 top-0 z-50 flex w-64 flex-col border-r border-white/10 bg-[#181713]/95 shadow-2xl shadow-black/30 backdrop-blur-xl transition-transform duration-300 ease-out",
         isOpen ? "translate-x-0" : "-translate-x-full",
         "lg:static lg:translate-x-0"
       )}>
         {/* Logo / Brand */}
-        <div className="flex items-center justify-between px-5 py-5 border-b border-charcoal-800">
+        <div className="flex items-center justify-between border-b border-white/10 px-5 py-5">
           <Link
             href="/"
             onClick={onClose}
             className="flex items-center gap-3 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-400/60"
             aria-label="Go to dashboard"
           >
-            <StudioLogo size={36} className="shrink-0" />
+            <div className="rounded-lg border border-brand-400/20 bg-brand-500/10 p-1 shadow-sm shadow-brand-950/30">
+              <StudioLogo size={34} className="shrink-0" />
+            </div>
             <div>
               <p className="text-sm font-bold text-white leading-tight">Snap &amp; Print</p>
-              <p className="text-xs text-charcoal-400">Studio</p>
+              <p className="text-xs text-charcoal-400">{roleLabel[userRole]}</p>
             </div>
           </Link>
           <button
             onClick={onClose}
-            className="lg:hidden text-charcoal-400 hover:text-white transition-colors p-1"
+            className="rounded-md p-1 text-charcoal-400 transition-colors hover:bg-white/5 hover:text-white lg:hidden"
+            aria-label="Close menu"
           >
             <X size={20} />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {visibleItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
@@ -82,22 +90,23 @@ export default function Sidebar({ userRole, isOpen = false, onClose }: SidebarPr
                 href={item.href}
                 onClick={onClose}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                  "group flex items-center gap-3 rounded-md border px-3 py-2.5 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-brand-500/15 text-brand-400 border border-brand-500/20"
-                    : "text-charcoal-400 hover:text-white hover:bg-charcoal-800"
+                    ? "border-brand-400/25 bg-brand-500/15 text-brand-300 shadow-sm shadow-brand-950/20"
+                    : "border-transparent text-charcoal-400 hover:border-white/10 hover:bg-white/[0.045] hover:text-white"
                 )}
               >
-                <Icon size={18} />
-                {item.label}
+                <Icon size={18} className={cn("transition-colors", isActive ? "text-brand-300" : "text-charcoal-500 group-hover:text-brand-300")} />
+                <span className="truncate">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-charcoal-800">
-          <p className="text-xs text-charcoal-600">Snap &amp; Print Studio v1.0</p>
+        <div className="border-t border-white/10 px-5 py-4">
+          <p className="text-xs font-medium text-charcoal-400">Studio OS</p>
+          <p className="mt-0.5 text-[11px] text-charcoal-600">Snap &amp; Print Studio v1.0</p>
         </div>
       </aside>
     </>
