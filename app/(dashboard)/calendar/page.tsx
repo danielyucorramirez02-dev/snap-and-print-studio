@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { CalendarDays } from "lucide-react";
-import type { Booking, Service, UserRole, BlockedDate } from "@/types";
+import type { Booking, Service, UserRole, BlockedDate, BlockedTimeSlot } from "@/types";
 import CalendarClient from "@/components/bookings/CalendarClient";
 
 export default async function CalendarPage() {
@@ -20,7 +20,11 @@ export default async function CalendarPage() {
     .from("blocked_dates")
     .select("date, reason, start_time, end_time, created_at, created_by");
 
-  const [{ data: services }, { data: bookings }, { data: blockedRows }] = await Promise.all([
+  const timeBlocksQuery = await supabase
+    .from("blocked_time_slots")
+    .select("id, date, start_time, end_time, reason, created_at, created_by");
+
+  const [{ data: services }, { data: bookings }, { data: blockedRows }, { data: timeBlockRows }] = await Promise.all([
     supabase
       .from("services")
       .select("*")
@@ -37,6 +41,9 @@ export default async function CalendarPage() {
           .from("blocked_dates")
           .select("date, reason, created_at, created_by")
       : Promise.resolve({ data: blockedQuery.data }),
+    timeBlocksQuery.error
+      ? Promise.resolve({ data: [] })
+      : Promise.resolve({ data: timeBlocksQuery.data }),
   ]);
 
   const allBookings = (bookings ?? []) as Booking[];
@@ -46,6 +53,7 @@ export default async function CalendarPage() {
     start_time: "start_time" in row ? row.start_time : null,
     end_time: "end_time" in row ? row.end_time : null,
   })) as BlockedDate[];
+  const blockedTimeSlots = (timeBlockRows ?? []) as BlockedTimeSlot[];
   const userRole = (profile?.role ?? "staff") as UserRole;
 
   return (
@@ -67,6 +75,7 @@ export default async function CalendarPage() {
         services={allServices}
         userRole={userRole}
         blockedDates={blockedDates}
+        blockedTimeSlots={blockedTimeSlots}
       />
     </div>
   );

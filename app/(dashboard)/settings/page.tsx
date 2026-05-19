@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Settings } from "lucide-react";
-import type { UserRole, BlockedDate } from "@/types";
+import type { UserRole, BlockedDate, BlockedTimeSlot } from "@/types";
 import SettingsClient from "@/components/settings/SettingsClient";
 
 export default async function SettingsPage() {
@@ -26,7 +26,14 @@ export default async function SettingsPage() {
     .gte("date", today)
     .order("date", { ascending: true });
 
-  const [{ data: legacyBlockedRows }, { data: settingsRow }] = await Promise.all([
+  const timeBlocksQuery = await supabase
+    .from("blocked_time_slots")
+    .select("id, date, start_time, end_time, reason, created_at, created_by")
+    .gte("date", today)
+    .order("date", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  const [{ data: legacyBlockedRows }, { data: timeBlockRows }, { data: settingsRow }] = await Promise.all([
     blockedQuery.error
       ? supabase
           .from("blocked_dates")
@@ -34,6 +41,9 @@ export default async function SettingsPage() {
           .gte("date", today)
           .order("date", { ascending: true })
       : Promise.resolve({ data: blockedQuery.data }),
+    timeBlocksQuery.error
+      ? Promise.resolve({ data: [] })
+      : Promise.resolve({ data: timeBlocksQuery.data }),
     supabase
       .from("studio_settings")
       .select("max_self_shoots_per_day")
@@ -46,6 +56,7 @@ export default async function SettingsPage() {
     start_time: "start_time" in row ? row.start_time : null,
     end_time: "end_time" in row ? row.end_time : null,
   })) as BlockedDate[];
+  const blockedTimeSlots = (timeBlockRows ?? []) as BlockedTimeSlot[];
   const maxSelfShootsPerDay = (settingsRow?.max_self_shoots_per_day as number | null) ?? null;
 
   return (
@@ -65,6 +76,7 @@ export default async function SettingsPage() {
         email={user.email ?? ""}
         role={(profile?.role ?? "owner") as UserRole}
         blockedDates={blockedDates}
+        blockedTimeSlots={blockedTimeSlots}
         maxSelfShootsPerDay={maxSelfShootsPerDay}
       />
     </div>

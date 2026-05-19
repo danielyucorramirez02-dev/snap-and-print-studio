@@ -18,13 +18,14 @@ import { Button } from "@/components/ui/button";
 import { formatTime } from "@/lib/utils/formatters";
 import BookingModal from "@/components/bookings/BookingModal";
 import BookingDrawer from "@/components/bookings/BookingDrawer";
-import type { Booking, Service, UserRole, PaymentStatus, BlockedDate } from "@/types";
+import type { Booking, Service, UserRole, PaymentStatus, BlockedDate, BlockedTimeSlot } from "@/types";
 
 interface CalendarClientProps {
   bookings: Booking[];
   services: Service[];
   userRole: UserRole;
   blockedDates: BlockedDate[];
+  blockedTimeSlots: BlockedTimeSlot[];
 }
 
 const STATUS_CHIP: Record<PaymentStatus, string> = {
@@ -38,7 +39,7 @@ const PENDING_CHIP = "bg-amber-500/10 text-amber-300 border-amber-500/40 border-
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MAX_CHIPS = 3;
 
-function formatBlockLabel(block: BlockedDate): string {
+function formatBlockLabel(block: BlockedDate | BlockedTimeSlot): string {
   const reason = block.reason ? `: ${block.reason}` : "";
   if (block.start_time && block.end_time) {
     return `${formatTime(block.start_time)}-${formatTime(block.end_time)}${reason}`;
@@ -180,19 +181,23 @@ function DayDetailModal({ day, bookings, onBookingClick, onClose }: DayDetailMod
   );
 }
 
-export default function CalendarClient({ bookings, services, userRole: _userRole, blockedDates }: CalendarClientProps) {
+export default function CalendarClient({ bookings, services, userRole: _userRole, blockedDates, blockedTimeSlots }: CalendarClientProps) {
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerBooking, setDrawerBooking] = useState<Booking | undefined>(undefined);
   const [dayDetail, setDayDetail] = useState<{ day: Date; bookings: Booking[] } | null>(null);
 
   const blockedByDate = useMemo(() => {
-    const map = new Map<string, string | null>();
+    const map = new Map<string, string[]>();
     for (const bd of blockedDates) {
-      map.set(bd.date, formatBlockLabel(bd));
+      map.set(bd.date, [formatBlockLabel(bd)]);
+    }
+    for (const slot of blockedTimeSlots) {
+      const existing = map.get(slot.date) ?? [];
+      map.set(slot.date, [...existing, formatBlockLabel(slot)]);
     }
     return map;
-  }, [blockedDates]);
+  }, [blockedDates, blockedTimeSlots]);
 
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
@@ -274,7 +279,7 @@ export default function CalendarClient({ bookings, services, userRole: _userRole
             const key = format(day, "yyyy-MM-dd");
             const dayBookings = bookingsByDate.get(key) ?? [];
             const isBlocked = blockedByDate.has(key);
-            const blockedReason = blockedByDate.get(key) ?? null;
+            const blockedReason = blockedByDate.get(key)?.join(", ") ?? null;
             return (
               <DayCell
                 key={key}

@@ -6,6 +6,7 @@ import {
   changePassword,
   addBlockedDate,
   removeBlockedDate,
+  removeBlockedTimeSlot,
   updateMaxSelfShootsPerDay,
 } from "@/app/(dashboard)/settings/actions";
 import { Button } from "@/components/ui/button";
@@ -13,13 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, AlertCircle, User, Lock, Info, CalendarX, Trash2, Plus, Clock } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/utils/formatters";
-import type { UserRole, BlockedDate } from "@/types";
+import type { UserRole, BlockedDate, BlockedTimeSlot } from "@/types";
 
 interface SettingsClientProps {
   fullName: string;
   email: string;
   role: UserRole;
   blockedDates: BlockedDate[];
+  blockedTimeSlots: BlockedTimeSlot[];
   maxSelfShootsPerDay: number | null;
 }
 
@@ -59,6 +61,7 @@ export default function SettingsClient({
   email,
   role,
   blockedDates,
+  blockedTimeSlots,
   maxSelfShootsPerDay,
 }: SettingsClientProps) {
   // Profile form
@@ -82,6 +85,7 @@ export default function SettingsClient({
   const [blockMsg, setBlockMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [blockPending, startBlockTransition] = useTransition();
   const [removingDate, setRemovingDate] = useState<string | null>(null);
+  const [removingTimeSlot, setRemovingTimeSlot] = useState<string | null>(null);
   const [, startRemoveTransition] = useTransition();
 
   const [capInput, setCapInput] = useState<string>(
@@ -109,7 +113,7 @@ export default function SettingsClient({
         return;
       }
       setBlockMsg({ type: "success", text: newBlockMode === "whole-day" ? "Date blocked." : "Time blocked." });
-      setNewBlockDate("");
+      if (newBlockMode === "whole-day") setNewBlockDate("");
       setNewBlockReason("");
     });
   };
@@ -120,6 +124,18 @@ export default function SettingsClient({
     startRemoveTransition(async () => {
       const result = await removeBlockedDate(date);
       setRemovingDate(null);
+      if ("error" in result) {
+        setBlockMsg({ type: "error", text: result.error });
+      }
+    });
+  };
+
+  const handleRemoveBlockedTimeSlot = (id: string) => {
+    setBlockMsg(null);
+    setRemovingTimeSlot(id);
+    startRemoveTransition(async () => {
+      const result = await removeBlockedTimeSlot(id);
+      setRemovingTimeSlot(null);
       if ("error" in result) {
         setBlockMsg({ type: "error", text: result.error });
       }
@@ -372,9 +388,9 @@ export default function SettingsClient({
 
           {/* List of blocked dates */}
           <div className="space-y-2 pt-4 border-t border-charcoal-800">
-            <Label className="text-charcoal-300">Upcoming blocked dates</Label>
+            <Label className="text-charcoal-300">Upcoming whole-day blocks</Label>
             {blockedDates.length === 0 ? (
-              <p className="text-charcoal-600 text-xs py-2">No upcoming blocked dates.</p>
+              <p className="text-charcoal-600 text-xs py-2">No upcoming whole-day blocks.</p>
             ) : (
               <div className="space-y-1.5">
                 {blockedDates.map((bd) => (
@@ -399,6 +415,41 @@ export default function SettingsClient({
                       className="text-charcoal-500 hover:text-red-400 transition-colors disabled:opacity-40"
                       title="Remove block"
                       aria-label={`Unblock ${bd.date}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2 pt-4 border-t border-charcoal-800">
+            <Label className="text-charcoal-300">Upcoming blocked times</Label>
+            {blockedTimeSlots.length === 0 ? (
+              <p className="text-charcoal-600 text-xs py-2">No upcoming blocked times.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {blockedTimeSlots.map((slot) => (
+                  <div
+                    key={slot.id}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-charcoal-800 border border-charcoal-700"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium">{formatDate(slot.date)}</p>
+                      <p className="text-charcoal-400 text-xs">
+                        {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
+                      </p>
+                      {slot.reason && (
+                        <p className="text-charcoal-500 text-xs truncate">{slot.reason}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleRemoveBlockedTimeSlot(slot.id)}
+                      disabled={removingTimeSlot === slot.id}
+                      className="text-charcoal-500 hover:text-red-400 transition-colors disabled:opacity-40"
+                      title="Remove time block"
+                      aria-label={`Remove blocked time on ${slot.date}`}
                     >
                       <Trash2 size={15} />
                     </button>

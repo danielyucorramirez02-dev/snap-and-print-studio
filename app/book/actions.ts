@@ -32,6 +32,16 @@ async function fetchDateBlock(
   supabase: Awaited<ReturnType<typeof createClient>>,
   dateStr: string
 ): Promise<{ fullDay: boolean; reason: string | null; ranges: TimeBlock[] }> {
+  const { data: timeSlots } = await supabase
+    .from("blocked_time_slots")
+    .select("start_time, end_time")
+    .eq("date", dateStr);
+
+  const slotRanges = (timeSlots ?? []).map((slot) => ({
+    start_time: (slot.start_time as string).substring(0, 5),
+    end_time: (slot.end_time as string).substring(0, 5),
+  }));
+
   const { data, error } = await supabase
     .from("blocked_dates")
     .select("reason, start_time, end_time")
@@ -44,11 +54,11 @@ async function fetchDateBlock(
       .select("reason")
       .eq("date", dateStr)
       .maybeSingle();
-    if (!legacyData) return { fullDay: false, reason: null, ranges: [] };
+    if (!legacyData) return { fullDay: false, reason: null, ranges: slotRanges };
     return { fullDay: true, reason: (legacyData.reason as string | null) ?? null, ranges: [] };
   }
 
-  if (!data) return { fullDay: false, reason: null, ranges: [] };
+  if (!data) return { fullDay: false, reason: null, ranges: slotRanges };
 
   const block = {
     start_time: (data.start_time as string | null) ?? null,
@@ -58,7 +68,7 @@ async function fetchDateBlock(
   return {
     fullDay: isWholeDayBlock(block),
     reason: (data.reason as string | null) ?? null,
-    ranges: isWholeDayBlock(block) ? [] : [block],
+    ranges: isWholeDayBlock(block) ? slotRanges : [block, ...slotRanges],
   };
 }
 

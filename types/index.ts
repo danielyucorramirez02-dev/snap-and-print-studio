@@ -103,6 +103,16 @@ export interface BlockedDate {
   created_by: string | null;
 }
 
+export interface BlockedTimeSlot {
+  id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  reason: string | null;
+  created_at: string;
+  created_by: string | null;
+}
+
 export interface StudioSettings {
   id: number;
   max_self_shoots_per_day: number | null;

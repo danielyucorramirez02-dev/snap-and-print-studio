@@ -63,18 +63,45 @@ export async function addBlockedDate(
     if (startTime >= endTime) return { error: "End time must be after start time." };
   }
 
+  const { error } = isTimeRange
+    ? await supabase
+        .from("blocked_time_slots")
+        .insert({
+          date,
+          reason: reason.trim() || null,
+          start_time: startTime,
+          end_time: endTime,
+          created_by: user.id,
+        })
+    : await supabase
+        .from("blocked_dates")
+        .upsert(
+          {
+            date,
+            reason: reason.trim() || null,
+            start_time: null,
+            end_time: null,
+            created_by: user.id,
+          },
+          { onConflict: "date" }
+        );
+
+  if (error) return { error: error.message };
+  revalidatePath("/settings");
+  return { success: true };
+}
+
+export async function removeBlockedTimeSlot(
+  id: string
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
   const { error } = await supabase
-    .from("blocked_dates")
-    .upsert(
-      {
-        date,
-        reason: reason.trim() || null,
-        start_time: isTimeRange ? startTime : null,
-        end_time: isTimeRange ? endTime : null,
-        created_by: user.id,
-      },
-      { onConflict: "date" }
-    );
+    .from("blocked_time_slots")
+    .delete()
+    .eq("id", id);
 
   if (error) return { error: error.message };
   revalidatePath("/settings");
