@@ -110,6 +110,7 @@ Known migration state from the Claude-era decision log:
 - `supabase-migration-v7.sql` adds the lightweight `content_bank` table for post ideas and reusable content tracking.
 - `supabase-migration-v8.sql` adds partial-day time blocks to `blocked_dates`.
 - `supabase-migration-v9.sql` adds multiple blocked time ranges per date through `blocked_time_slots`.
+- `supabase-migration-v10.sql` restores safe public booking creation after RLS hardening.
 - `supabase-content-bank-starter-seed.sql` is optional starter data for `/content`; it is safe to rerun because it skips existing titles.
 - The booking app Supabase DB is the source of truth for bookings and revenue.
 - GCash remains manually verified; there is no personal GCash API integration.

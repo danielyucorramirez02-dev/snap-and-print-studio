@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import {
   getSelfShootBlockMinutes,
@@ -262,9 +263,13 @@ export async function createPublicBooking(input: {
     : input.downpaymentAmount > 0 ? "partial"
     : "unpaid";
 
-  const { data: inserted, error } = await supabase
+  const bookingId = randomUUID();
+  const token = randomUUID();
+
+  const { error } = await supabase
     .from("bookings")
     .insert({
+      id: bookingId,
       client_name: input.clientName.trim(),
       client_phone: input.clientPhone.trim(),
       client_email: input.clientEmail.trim() || null,
@@ -276,17 +281,13 @@ export async function createPublicBooking(input: {
       downpayment_paid: false,
       payment_status,
       booking_status: bookingStatus,
+      booking_token: token,
       notes: input.addonNotes ?? null,
       receipt_url: input.receiptUrl ?? null,
       created_by: null,
-    })
-    .select("id, booking_token")
-    .single();
+    });
 
   if (error) return { error: error.message };
-  if (!inserted) return { error: "Booking could not be created." };
-
-  const token = inserted.booking_token as string;
 
   if (input.clientEmail) {
     await sendBookingConfirmation({
@@ -306,7 +307,7 @@ export async function createPublicBooking(input: {
   }
 
   await logBookingToSheet({
-    bookingId: inserted.id as string,
+    bookingId,
     clientName: input.clientName,
     clientPhone: input.clientPhone,
     clientEmail: input.clientEmail,
