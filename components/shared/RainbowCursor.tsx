@@ -12,7 +12,7 @@ export default function RainbowCursor() {
 
     function handlePointerMove(event: PointerEvent) {
       const now = performance.now();
-      if (now - last < 28) return;
+      if (now - last < 24) return;
       last = now;
       hue = (hue + 24) % 360;
 

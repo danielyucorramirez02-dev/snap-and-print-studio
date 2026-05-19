@@ -97,6 +97,8 @@ export interface InventoryItem {
 export interface BlockedDate {
   date: string;
   reason: string | null;
+  start_time: string | null;
+  end_time: string | null;
   created_at: string;
   created_by: string | null;
 }

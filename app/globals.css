@@ -122,12 +122,12 @@
 
   @keyframes rainbow-cursor-fade {
     0% {
-      opacity: 0.95;
-      transform: translate(-50%, -50%) scale(0.45);
+      opacity: 0.92;
+      transform: translate(-50%, -50%) scale(0.38);
     }
     100% {
       opacity: 0;
-      transform: translate(-50%, -50%) scale(1.9);
+      transform: translate(-50%, -50%) scale(2.25);
     }
   }
 
@@ -144,14 +144,30 @@
   .rainbow-cursor-dot {
     position: fixed;
     z-index: 9999;
-    width: 14px;
-    height: 14px;
+    width: 24px;
+    height: 24px;
     pointer-events: none;
     border-radius: 9999px;
+    background: conic-gradient(
+      from 90deg,
+      #43b8b2,
+      #e4a924,
+      #f472b6,
+      #60a5fa,
+      #43b8b2
+    );
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.82),
+      0 0 14px hsla(var(--cursor-hue), 92%, 48%, 0.36);
+    mix-blend-mode: normal;
+    animation: rainbow-cursor-fade 760ms ease-out forwards;
+  }
+
+  .dark .rainbow-cursor-dot {
     background:
-      radial-gradient(circle, hsla(var(--cursor-hue), 84%, 62%, 0.78) 0%, hsla(var(--cursor-hue), 84%, 62%, 0.22) 42%, transparent 72%);
-    mix-blend-mode: multiply;
-    animation: rainbow-cursor-fade 650ms ease-out forwards;
+      radial-gradient(circle, hsla(var(--cursor-hue), 86%, 64%, 0.68) 0%, hsla(var(--cursor-hue), 86%, 64%, 0.24) 44%, transparent 74%);
+    box-shadow: 0 0 14px hsla(var(--cursor-hue), 86%, 64%, 0.34);
+    mix-blend-mode: screen;
   }
 
   @media (prefers-reduced-motion: reduce), (pointer: coarse) {

@@ -16,6 +16,10 @@ export default async function CalendarPage() {
     .eq("id", user.id)
     .single();
 
+  const blockedQuery = await supabase
+    .from("blocked_dates")
+    .select("date, reason, start_time, end_time, created_at, created_by");
+
   const [{ data: services }, { data: bookings }, { data: blockedRows }] = await Promise.all([
     supabase
       .from("services")
@@ -28,14 +32,20 @@ export default async function CalendarPage() {
       .neq("booking_status", "cancelled")
       .order("booking_date", { ascending: true })
       .order("booking_time", { ascending: true }),
-    supabase
-      .from("blocked_dates")
-      .select("date, reason, created_at, created_by"),
+    blockedQuery.error
+      ? supabase
+          .from("blocked_dates")
+          .select("date, reason, created_at, created_by")
+      : Promise.resolve({ data: blockedQuery.data }),
   ]);
 
   const allBookings = (bookings ?? []) as Booking[];
   const allServices = (services ?? []) as Service[];
-  const blockedDates = (blockedRows ?? []) as BlockedDate[];
+  const blockedDates = (blockedRows ?? []).map((row) => ({
+    ...row,
+    start_time: "start_time" in row ? row.start_time : null,
+    end_time: "end_time" in row ? row.end_time : null,
+  })) as BlockedDate[];
   const userRole = (profile?.role ?? "staff") as UserRole;
 
   return (

@@ -45,7 +45,7 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
       <div className="space-y-2">
-        <Label htmlFor="email" className="text-charcoal-700">
+        <Label htmlFor="email" className="text-charcoal-700 transition-colors duration-500 dark:text-charcoal-200">
           Email Address
         </Label>
         <Input
@@ -53,7 +53,7 @@ export default function LoginForm() {
           type="email"
           placeholder="owner@snapandprint.com"
           autoComplete="email"
-          className="h-10 border-charcoal-950/15 bg-white/85 text-charcoal-950 shadow-sm transition-all duration-200 placeholder:text-charcoal-400 focus-visible:border-[#43b8b2]/50 focus-visible:ring-[#43b8b2]/35"
+          className="h-10 border-charcoal-950/15 bg-white/85 text-charcoal-950 shadow-sm transition-all duration-200 placeholder:text-charcoal-400 focus-visible:border-[#43b8b2]/50 focus-visible:ring-[#43b8b2]/35 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-charcoal-500"
           {...register("email")}
         />
         {errors.email && (
@@ -62,7 +62,7 @@ export default function LoginForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password" className="text-charcoal-700">
+        <Label htmlFor="password" className="text-charcoal-700 transition-colors duration-500 dark:text-charcoal-200">
           Password
         </Label>
         <div className="relative">
@@ -71,13 +71,13 @@ export default function LoginForm() {
             type={showPassword ? "text" : "password"}
             placeholder="Password"
             autoComplete="current-password"
-            className="h-10 border-charcoal-950/15 bg-white/85 pr-10 text-charcoal-950 shadow-sm transition-all duration-200 placeholder:text-charcoal-400 focus-visible:border-[#43b8b2]/50 focus-visible:ring-[#43b8b2]/35"
+            className="h-10 border-charcoal-950/15 bg-white/85 pr-10 text-charcoal-950 shadow-sm transition-all duration-200 placeholder:text-charcoal-400 focus-visible:border-[#43b8b2]/50 focus-visible:ring-[#43b8b2]/35 dark:border-white/10 dark:bg-white/10 dark:text-white dark:placeholder:text-charcoal-500"
             {...register("password")}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-charcoal-400 transition-colors hover:bg-charcoal-950/5 hover:text-charcoal-700"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-charcoal-400 transition-colors hover:bg-charcoal-950/5 hover:text-charcoal-700 dark:hover:bg-white/10 dark:hover:text-white"
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -97,7 +97,7 @@ export default function LoginForm() {
       <Button
         type="submit"
         disabled={isSubmitting}
-        className="h-10 w-full bg-charcoal-950 font-semibold text-white shadow-lg shadow-charcoal-950/15 transition-all duration-300 hover:-translate-y-0.5 hover:bg-charcoal-900 hover:shadow-xl hover:shadow-[#43b8b2]/15"
+        className="h-10 w-full bg-charcoal-950 font-semibold text-white shadow-lg shadow-charcoal-950/15 transition-all duration-300 hover:-translate-y-0.5 hover:bg-charcoal-900 hover:shadow-xl hover:shadow-[#43b8b2]/15 dark:bg-white dark:text-charcoal-950 dark:hover:bg-charcoal-100"
       >
         {isSubmitting ? (
           <>

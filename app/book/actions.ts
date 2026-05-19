@@ -1,7 +1,17 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getSelfShootSlots, isDailyCapReached, type SlotAvailabilityReason } from "@/lib/utils/slots";
+import {
+  getSelfShootBlockMinutes,
+  getSelfShootSlots,
+  isDailyCapReached,
+  isWholeDayBlock,
+  rangesOverlap,
+  toMinutes,
+  toTimeString,
+  type SlotAvailabilityReason,
+  type TimeBlock,
+} from "@/lib/utils/slots";
 import { sendBookingConfirmation } from "@/lib/email";
 import { logBookingToSheet } from "@/lib/google-sheets";
 import type { Booking, Service } from "@/types";
@@ -21,14 +31,45 @@ export interface BookedMilestoneSlotsResult {
 async function fetchDateBlock(
   supabase: Awaited<ReturnType<typeof createClient>>,
   dateStr: string
-): Promise<{ blocked: boolean; reason: string | null }> {
-  const { data } = await supabase
+): Promise<{ fullDay: boolean; reason: string | null; ranges: TimeBlock[] }> {
+  const { data, error } = await supabase
     .from("blocked_dates")
-    .select("reason")
+    .select("reason, start_time, end_time")
     .eq("date", dateStr)
     .maybeSingle();
-  if (!data) return { blocked: false, reason: null };
-  return { blocked: true, reason: (data.reason as string | null) ?? null };
+
+  if (error) {
+    const { data: legacyData } = await supabase
+      .from("blocked_dates")
+      .select("reason")
+      .eq("date", dateStr)
+      .maybeSingle();
+    if (!legacyData) return { fullDay: false, reason: null, ranges: [] };
+    return { fullDay: true, reason: (legacyData.reason as string | null) ?? null, ranges: [] };
+  }
+
+  if (!data) return { fullDay: false, reason: null, ranges: [] };
+
+  const block = {
+    start_time: (data.start_time as string | null) ?? null,
+    end_time: (data.end_time as string | null) ?? null,
+  };
+
+  return {
+    fullDay: isWholeDayBlock(block),
+    reason: (data.reason as string | null) ?? null,
+    ranges: isWholeDayBlock(block) ? [] : [block],
+  };
+}
+
+function bookingConflictsWithBlock(time: string, service: Service, block: TimeBlock): boolean {
+  if (isWholeDayBlock(block)) return true;
+  const start = time.substring(0, 5);
+  const duration = service.category === "self-shoot"
+    ? getSelfShootBlockMinutes(service.name)
+    : service.duration_minutes;
+  const end = toTimeString(toMinutes(start) + duration);
+  return rangesOverlap(start, end, block.start_time!, block.end_time!);
 }
 
 async function fetchSelfShootCap(
@@ -101,7 +142,7 @@ export async function getAvailableSlots(
   if (service.category !== "self-shoot") return { slots: [], reason: "no-slots" };
 
   const block = await fetchDateBlock(supabase, dateStr);
-  if (block.blocked) {
+  if (block.fullDay) {
     return { slots: [], reason: "blocked", blockedReason: block.reason };
   }
 
@@ -121,7 +162,7 @@ export async function getAvailableSlots(
     return { slots: [], reason: "capped" };
   }
 
-  const slots = getSelfShootSlots(dateStr, service, heldBookings);
+  const slots = getSelfShootSlots(dateStr, service, heldBookings, block.ranges);
   if (slots.length === 0) return { slots: [], reason: "no-slots" };
   return { slots, reason: "open" };
 }
@@ -132,7 +173,7 @@ export async function getBookedMilestoneSlots(
   const supabase = await createClient();
 
   const block = await fetchDateBlock(supabase, dateStr);
-  if (block.blocked) {
+  if (block.fullDay) {
     return { booked: [], closed: true, closedReason: block.reason };
   }
 
@@ -140,7 +181,11 @@ export async function getBookedMilestoneSlots(
     .filter((b) => b.service?.category === "milestone" || b.service?.category === "coverage")
     .map((b) => b.booking_time.substring(0, 5));
 
-  return { booked, closed: false };
+  const blockedSlots = ["08:00", "09:00", "10:00", "14:00", "15:00", "16:00"].filter((slot) =>
+    block.ranges.some((range) => rangesOverlap(slot, toTimeString(toMinutes(slot) + 60), range.start_time!, range.end_time!))
+  );
+
+  return { booked: Array.from(new Set([...booked, ...blockedSlots])), closed: false };
 }
 
 export async function createPublicBooking(input: {
@@ -170,11 +215,19 @@ export async function createPublicBooking(input: {
   const service = serviceData as Service;
 
   const block = await fetchDateBlock(supabase, input.date);
-  if (block.blocked) {
+  if (block.fullDay) {
     return {
       error: block.reason
         ? `Studio is closed on this date: ${block.reason}. Please pick another.`
         : "Studio is closed on this date. Please pick another.",
+    };
+  }
+
+  if (block.ranges.some((range) => bookingConflictsWithBlock(input.time, service, range))) {
+    return {
+      error: block.reason
+        ? `Studio is unavailable at that time: ${block.reason}. Please pick another time.`
+        : "Studio is unavailable at that time. Please pick another time.",
     };
   }
 

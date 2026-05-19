@@ -26,7 +26,7 @@ export function isSelfShoot(category: string | null): boolean {
   return category === "self-shoot";
 }
 
-function toMinutes(time: string): number {
+export function toMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
   return h * 60 + m;
 }
@@ -50,12 +50,36 @@ export function getStudioHoursForDate(dateStr: string): { open: string; close: s
   return STUDIO_HOURS[d.getDay()] ?? null;
 }
 
+export type TimeBlock = {
+  start_time: string | null;
+  end_time: string | null;
+};
+
+export function isWholeDayBlock(block: TimeBlock): boolean {
+  return !block.start_time || !block.end_time;
+}
+
+export function rangesOverlap(
+  startA: string,
+  endA: string,
+  startB: string,
+  endB: string
+): boolean {
+  return toMinutes(startA) < toMinutes(endB) && toMinutes(endA) > toMinutes(startB);
+}
+
+function conflictsWithTimeBlock(start: number, end: number, block: TimeBlock): boolean {
+  if (isWholeDayBlock(block)) return true;
+  return start < toMinutes(block.end_time!) && end > toMinutes(block.start_time!);
+}
+
 // Generate available 15-minute self-shoot slots for a date + service,
 // blocking slots that conflict with existing confirmed bookings.
 export function getSelfShootSlots(
   dateStr: string,
   service: Service,
-  confirmedBookings: Booking[]
+  confirmedBookings: Booking[],
+  blockedRanges: TimeBlock[] = []
 ): string[] {
   const hours = getStudioHoursForDate(dateStr);
   if (!hours) return [];
@@ -70,6 +94,9 @@ export function getSelfShootSlots(
   // booking block would overlap the block of an existing booking.
   for (let start = openMin; start + newBlock <= closeMin; start += 15) {
     const newEnd = start + newBlock;
+
+    const blocked = blockedRanges.some((block) => conflictsWithTimeBlock(start, newEnd, block));
+    if (blocked) continue;
 
     const conflict = confirmedBookings.some((b) => {
       const existingStart = toMinutes(b.booking_time);

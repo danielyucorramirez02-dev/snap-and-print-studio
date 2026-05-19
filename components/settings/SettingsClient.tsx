@@ -11,8 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, AlertCircle, User, Lock, Info, CalendarX, Trash2, Plus } from "lucide-react";
-import { formatDate } from "@/lib/utils/formatters";
+import { CheckCircle2, AlertCircle, User, Lock, Info, CalendarX, Trash2, Plus, Clock } from "lucide-react";
+import { formatDate, formatTime } from "@/lib/utils/formatters";
 import type { UserRole, BlockedDate } from "@/types";
 
 interface SettingsClientProps {
@@ -75,6 +75,9 @@ export default function SettingsClient({
   // Capacity / blocked dates
   const today = new Date().toISOString().split("T")[0];
   const [newBlockDate, setNewBlockDate] = useState("");
+  const [newBlockMode, setNewBlockMode] = useState<"whole-day" | "time-range">("whole-day");
+  const [newBlockStartTime, setNewBlockStartTime] = useState("13:00");
+  const [newBlockEndTime, setNewBlockEndTime] = useState("14:00");
   const [newBlockReason, setNewBlockReason] = useState("");
   const [blockMsg, setBlockMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [blockPending, startBlockTransition] = useTransition();
@@ -94,12 +97,18 @@ export default function SettingsClient({
       return;
     }
     startBlockTransition(async () => {
-      const result = await addBlockedDate(newBlockDate, newBlockReason);
+      const result = await addBlockedDate(
+        newBlockDate,
+        newBlockReason,
+        newBlockMode,
+        newBlockStartTime,
+        newBlockEndTime
+      );
       if ("error" in result) {
         setBlockMsg({ type: "error", text: result.error });
         return;
       }
-      setBlockMsg({ type: "success", text: "Date blocked." });
+      setBlockMsg({ type: "success", text: newBlockMode === "whole-day" ? "Date blocked." : "Time blocked." });
       setNewBlockDate("");
       setNewBlockReason("");
     });
@@ -278,8 +287,9 @@ export default function SettingsClient({
 
           {/* Add new blocked date */}
           <div className="space-y-1.5 pt-4 border-t border-charcoal-800">
-            <Label className="text-charcoal-300">Block a specific date</Label>
-            <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr_auto] gap-2">
+            <Label className="text-charcoal-300">Block a date or time</Label>
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-[160px_1fr] gap-2">
               <Input
                 type="date"
                 min={today}
@@ -294,6 +304,57 @@ export default function SettingsClient({
                 placeholder="Reason (optional) — e.g. Editing day, Holiday"
                 className="bg-charcoal-800 border-charcoal-700 text-white placeholder:text-charcoal-500 focus:border-brand-500"
               />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNewBlockMode("whole-day")}
+                  className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                    newBlockMode === "whole-day"
+                      ? "border-brand-500/40 bg-brand-500/15 text-brand-300"
+                      : "border-charcoal-700 bg-charcoal-800 text-charcoal-400 hover:text-white"
+                  }`}
+                >
+                  Whole day
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewBlockMode("time-range")}
+                  className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors ${
+                    newBlockMode === "time-range"
+                      ? "border-brand-500/40 bg-brand-500/15 text-brand-300"
+                      : "border-charcoal-700 bg-charcoal-800 text-charcoal-400 hover:text-white"
+                  }`}
+                >
+                  <Clock size={14} />
+                  Certain time
+                </button>
+              </div>
+
+              {newBlockMode === "time-range" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-charcoal-500 text-xs">Start time</Label>
+                    <Input
+                      type="time"
+                      value={newBlockStartTime}
+                      onChange={(e) => setNewBlockStartTime(e.target.value)}
+                      className="bg-charcoal-800 border-charcoal-700 text-white focus:border-brand-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-charcoal-500 text-xs">End time</Label>
+                    <Input
+                      type="time"
+                      value={newBlockEndTime}
+                      onChange={(e) => setNewBlockEndTime(e.target.value)}
+                      className="bg-charcoal-800 border-charcoal-700 text-white focus:border-brand-500"
+                    />
+                  </div>
+                </div>
+              )}
+
               <Button
                 onClick={handleAddBlockedDate}
                 disabled={blockPending}
@@ -304,7 +365,7 @@ export default function SettingsClient({
               </Button>
             </div>
             <p className="text-charcoal-600 text-xs">
-              Existing bookings on a blocked date are kept. New bookings for that date are refused.
+              Whole-day blocks close the date. Time blocks only hide slots that overlap that time.
             </p>
             {blockMsg && <FeedbackMessage type={blockMsg.type} message={blockMsg.text} />}
           </div>
@@ -323,6 +384,11 @@ export default function SettingsClient({
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium">{formatDate(bd.date)}</p>
+                      <p className="text-charcoal-400 text-xs">
+                        {bd.start_time && bd.end_time
+                          ? `${formatTime(bd.start_time)} - ${formatTime(bd.end_time)}`
+                          : "Whole day"}
+                      </p>
                       {bd.reason && (
                         <p className="text-charcoal-500 text-xs truncate">{bd.reason}</p>
                       )}

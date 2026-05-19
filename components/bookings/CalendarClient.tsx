@@ -38,6 +38,14 @@ const PENDING_CHIP = "bg-amber-500/10 text-amber-300 border-amber-500/40 border-
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MAX_CHIPS = 3;
 
+function formatBlockLabel(block: BlockedDate): string {
+  const reason = block.reason ? `: ${block.reason}` : "";
+  if (block.start_time && block.end_time) {
+    return `${formatTime(block.start_time)}-${formatTime(block.end_time)}${reason}`;
+  }
+  return block.reason ?? "Whole day";
+}
+
 interface BookingChipProps {
   booking: Booking;
   onClick: () => void;
@@ -181,7 +189,7 @@ export default function CalendarClient({ bookings, services, userRole: _userRole
   const blockedByDate = useMemo(() => {
     const map = new Map<string, string | null>();
     for (const bd of blockedDates) {
-      map.set(bd.date, bd.reason);
+      map.set(bd.date, formatBlockLabel(bd));
     }
     return map;
   }, [blockedDates]);

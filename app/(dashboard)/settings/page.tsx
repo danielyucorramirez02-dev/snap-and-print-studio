@@ -20,12 +20,20 @@ export default async function SettingsPage() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const [{ data: blockedRows }, { data: settingsRow }] = await Promise.all([
-    supabase
-      .from("blocked_dates")
-      .select("date, reason, created_at, created_by")
-      .gte("date", today)
-      .order("date", { ascending: true }),
+  const blockedQuery = await supabase
+    .from("blocked_dates")
+    .select("date, reason, start_time, end_time, created_at, created_by")
+    .gte("date", today)
+    .order("date", { ascending: true });
+
+  const [{ data: legacyBlockedRows }, { data: settingsRow }] = await Promise.all([
+    blockedQuery.error
+      ? supabase
+          .from("blocked_dates")
+          .select("date, reason, created_at, created_by")
+          .gte("date", today)
+          .order("date", { ascending: true })
+      : Promise.resolve({ data: blockedQuery.data }),
     supabase
       .from("studio_settings")
       .select("max_self_shoots_per_day")
@@ -33,7 +41,11 @@ export default async function SettingsPage() {
       .maybeSingle(),
   ]);
 
-  const blockedDates = (blockedRows ?? []) as BlockedDate[];
+  const blockedDates = (legacyBlockedRows ?? []).map((row) => ({
+    ...row,
+    start_time: "start_time" in row ? row.start_time : null,
+    end_time: "end_time" in row ? row.end_time : null,
+  })) as BlockedDate[];
   const maxSelfShootsPerDay = (settingsRow?.max_self_shoots_per_day as number | null) ?? null;
 
   return (

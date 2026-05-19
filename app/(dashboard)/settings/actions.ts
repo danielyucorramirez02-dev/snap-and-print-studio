@@ -43,7 +43,10 @@ export async function changePassword(
 
 export async function addBlockedDate(
   date: string,
-  reason: string
+  reason: string,
+  mode: "whole-day" | "time-range" = "whole-day",
+  startTime?: string,
+  endTime?: string
 ): Promise<{ success: true } | { error: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -51,10 +54,25 @@ export async function addBlockedDate(
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Invalid date format." };
 
+  const isTimeRange = mode === "time-range";
+  if (isTimeRange) {
+    if (!startTime || !endTime) return { error: "Choose both start and end time." };
+    if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
+      return { error: "Invalid time format." };
+    }
+    if (startTime >= endTime) return { error: "End time must be after start time." };
+  }
+
   const { error } = await supabase
     .from("blocked_dates")
     .upsert(
-      { date, reason: reason.trim() || null, created_by: user.id },
+      {
+        date,
+        reason: reason.trim() || null,
+        start_time: isTimeRange ? startTime : null,
+        end_time: isTimeRange ? endTime : null,
+        created_by: user.id,
+      },
       { onConflict: "date" }
     );
 
