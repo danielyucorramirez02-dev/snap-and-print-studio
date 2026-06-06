@@ -4,7 +4,7 @@ import StudioLogo from "@/components/shared/StudioLogo";
 export default function MyBookingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="camera-cursor min-h-screen bg-charcoal-950">
-      <div className="max-w-lg mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto px-4 py-8">
         <div className="text-center mb-8 animate-fade-in-up">
           <Link
             href="/login"

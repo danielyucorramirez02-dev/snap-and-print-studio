@@ -18,7 +18,8 @@ export default async function GalleryPage() {
 
   const { data: bookings } = await supabase
     .from("bookings")
-    .select("id, client_name, booking_date, service:services(name)")
+    .select("id, client_name, client_email, booking_date, booking_time, booking_status, production_status, booking_token, service:services(name)")
+    .neq("booking_status", "cancelled")
     .order("booking_date", { ascending: false });
 
   const allBookings = (bookings ?? []) as unknown as Booking[];

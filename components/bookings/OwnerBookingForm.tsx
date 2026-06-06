@@ -11,6 +11,8 @@ import type { Service } from "@/types";
 import Link from "next/link";
 
 const PRESET_THEMES = ["Car", "Jungle", "Police", "Pink Castle", "Mermaid"];
+const COVERAGE_EVENT_TYPES = ["Debut", "Birthday", "Baptism", "Wedding", "Other"] as const;
+const COVERAGE_SECOND_PLACE_EVENTS = new Set<string>(["Baptism", "Wedding"]);
 
 const today = new Date().toISOString().split("T")[0];
 
@@ -53,6 +55,7 @@ export default function OwnerBookingForm({ services }: { services: Service[] }) 
       package_id: "",
       total_amount: 0, downpayment_amount: 0,
       notes: "", celebrant_name: "", turning_age: "", theme: "",
+      event_type: "", event_place_primary: "", event_place_secondary: "",
     },
   });
 
@@ -60,10 +63,13 @@ export default function OwnerBookingForm({ services }: { services: Service[] }) 
   const totalAmount  = Number(watch("total_amount")) || 0;
   const downpayment  = Number(watch("downpayment_amount")) || 0;
   const currentTheme = watch("theme") ?? "";
+  const coverageEventType = watch("event_type") ?? "";
   const balance      = Math.max(0, totalAmount - downpayment);
 
   const selectedService = services.find((s) => s.id === packageId);
   const isMilestone = selectedService?.category === "milestone";
+  const isCoverage = selectedService?.category === "coverage";
+  const canAddSecondPlace = COVERAGE_SECOND_PLACE_EVENTS.has(coverageEventType);
 
   useEffect(() => {
     if (selectedService) {
@@ -160,6 +166,43 @@ export default function OwnerBookingForm({ services }: { services: Service[] }) 
           </div>
         </div>
       </section>
+
+      {/* ── Coverage Details (only when coverage package selected) ── */}
+      {isCoverage && (
+        <section className="bg-charcoal-900 border border-brand-500/20 rounded-2xl p-5">
+          <SectionHeader>Coverage Details</SectionHeader>
+          <div className="space-y-4">
+            <Field label="Event" required error={errors.event_type?.message}>
+              <input type="hidden" {...register("event_type")} />
+              <select
+                value={coverageEventType}
+                onChange={(e) => {
+                  setValue("event_type", e.target.value, { shouldValidate: true });
+                  if (!COVERAGE_SECOND_PLACE_EVENTS.has(e.target.value)) {
+                    setValue("event_place_secondary", "", { shouldValidate: false });
+                  }
+                }}
+                className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm focus:outline-none focus:border-brand-500"
+              >
+                <option value="">Select event type</option>
+                {COVERAGE_EVENT_TYPES.map((event) => (
+                  <option key={event} value={event}>{event}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Place" required error={errors.event_place_primary?.message}>
+              <input {...register("event_place_primary")} placeholder="e.g. St. Augustine Parish, Pandi"
+                className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500" />
+            </Field>
+            {canAddSecondPlace && (
+              <Field label="Second Place">
+                <input {...register("event_place_secondary")} placeholder="e.g. Reception venue"
+                  className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500" />
+              </Field>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ── Milestone Details (only when milestone package selected) ── */}
       {isMilestone && (

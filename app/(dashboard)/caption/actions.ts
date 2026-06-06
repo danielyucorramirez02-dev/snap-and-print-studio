@@ -52,6 +52,24 @@ function parseDataUrl(dataUrl: string): InlineImage | null {
   return { mimeType: match[1], data: match[2] };
 }
 
+function extractCaption(data: unknown): string | null {
+  const candidate = data as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{ text?: string }>;
+      };
+    }>;
+  };
+
+  const caption = candidate.candidates?.[0]?.content?.parts
+    ?.map((p) => p.text)
+    .filter(Boolean)
+    .join("")
+    .trim();
+
+  return caption || null;
+}
+
 export async function generateCaption(
   base64Images: string[],
   sessionType: "self-shoot" | "milestone" | "coverage"
@@ -110,12 +128,8 @@ export async function generateCaption(
       };
     }
 
-    const data = await response.json();
-    const caption: string | undefined = data?.candidates?.[0]?.content?.parts
-      ?.map((p: { text?: string }) => p.text)
-      .filter(Boolean)
-      .join("")
-      .trim();
+    const data: unknown = await response.json();
+    const caption = extractCaption(data);
 
     if (!caption) {
       return { error: "No caption was generated. Please try again." };
@@ -125,5 +139,78 @@ export async function generateCaption(
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return { error: `Generation failed: ${message}` };
+  }
+}
+
+export async function modifyCaption(
+  currentCaption: string,
+  instruction: string
+): Promise<{ caption: string } | { error: string }> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return {
+      error:
+        "Gemini API key is not set. Add GEMINI_API_KEY to your .env.local file (and to Vercel).",
+    };
+  }
+
+  const cleanCaption = currentCaption.trim();
+  const cleanInstruction = instruction.trim();
+
+  if (!cleanCaption) {
+    return { error: "Generate a caption first, then tell me how to modify it." };
+  }
+
+  if (!cleanInstruction) {
+    return { error: "Tell me what to change, like make it shorter or more Taglish." };
+  }
+
+  const prompt = `Revise this Facebook caption for Snap & Print Studio based on the user's instruction.
+
+Keep the same facts, studio name, address, and photo/session context. Do not invent new photo details. Keep hashtags unless the user specifically asks to change/remove them.
+
+User instruction:
+${cleanInstruction}
+
+Current caption:
+${cleanCaption}
+
+Return only the revised caption.`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 600,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const detail = await response.text();
+      return {
+        error: `Modification failed: ${response.status} ${detail.slice(0, 200)}`,
+      };
+    }
+
+    const data: unknown = await response.json();
+    const caption = extractCaption(data);
+
+    if (!caption) {
+      return { error: "No revised caption was generated. Please try again." };
+    }
+
+    return { caption };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { error: `Modification failed: ${message}` };
   }
 }

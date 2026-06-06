@@ -2,9 +2,13 @@ export type UserRole = "owner" | "staff";
 
 export type BookingStatus = "confirmed" | "pending" | "cancelled";
 
+export type ProductionStatus = "not_started" | "shoot_done" | "editing" | "ready" | "delivered";
+
 export type PaymentStatus = "unpaid" | "partial" | "paid";
 
 export type PaymentMethod = "cash" | "gcash" | "bank";
+
+export type AttendanceStatus = "scheduled" | "arrived" | "no_show";
 
 export type ExpenseCategory = "supplies" | "utilities" | "equipment" | "other";
 
@@ -59,6 +63,14 @@ export interface Booking {
   balance: number;
   payment_status: PaymentStatus;
   booking_status: BookingStatus;
+  production_status: ProductionStatus;
+  attendance_status: AttendanceStatus;
+  internal_notes: string | null;
+  cancel_reason: string | null;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+  no_show_at: string | null;
+  no_show_by: string | null;
   booking_token: string;
   notes: string | null;
   receipt_url: string | null;

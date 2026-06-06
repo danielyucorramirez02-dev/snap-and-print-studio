@@ -5,6 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import { bookingSchema, type BookingFormData } from "@/lib/validations/booking";
 import { sendBookingConfirmation, sendGalleryLink } from "@/lib/email";
 import { logBookingToSheet, updateBookingInSheet, deleteBookingFromSheet } from "@/lib/google-sheets";
+import { PRODUCTION_STATUS_ORDER } from "@/lib/booking-production";
+import type { AttendanceStatus, ProductionStatus } from "@/types";
+
+const COVERAGE_EVENT_TYPES = ["Debut", "Birthday", "Baptism", "Wedding", "Other"] as const;
+const COVERAGE_SECOND_PLACE_EVENTS = new Set<string>(["Baptism", "Wedding"]);
 
 export async function createBooking(
   data: BookingFormData
@@ -22,13 +27,38 @@ export async function createBooking(
     booking_date, booking_time, package_id,
     total_amount, downpayment_amount, notes,
     celebrant_name, turning_age, theme,
+    event_type, event_place_primary, event_place_secondary,
   } = parsed.data;
 
-  // Combine milestone details + free notes into one stored string
+  const { data: service } = await supabase
+    .from("services")
+    .select("name, category")
+    .eq("id", package_id)
+    .single();
+
+  if (!service) return { error: "Package not found." };
+
+  if (service.category === "coverage") {
+    if (!event_type || !COVERAGE_EVENT_TYPES.includes(event_type as typeof COVERAGE_EVENT_TYPES[number])) {
+      return { error: "Please choose the event type." };
+    }
+    if (!event_place_primary?.trim()) {
+      return { error: "Please enter the event place." };
+    }
+  }
+
+  // Combine structured details + free notes into one stored string
   const noteParts: string[] = [];
   if (celebrant_name) noteParts.push(`Celebrant: ${celebrant_name}`);
   if (turning_age) noteParts.push(`Turning: ${turning_age}`);
   if (theme) noteParts.push(`Theme: ${theme}`);
+  if (service.category === "coverage") {
+    if (event_type) noteParts.push(`Event: ${event_type}`);
+    if (event_place_primary) noteParts.push(`Place: ${event_place_primary.trim()}`);
+    if (event_type && COVERAGE_SECOND_PLACE_EVENTS.has(event_type) && event_place_secondary?.trim()) {
+      noteParts.push(`Second place: ${event_place_secondary.trim()}`);
+    }
+  }
   if (notes) noteParts.push(notes);
   const combinedNotes = noteParts.length > 0 ? noteParts.join(" | ") : null;
 
@@ -54,7 +84,6 @@ export async function createBooking(
 
   if (error) return { error: error.message };
 
-  const { data: service } = await supabase.from("services").select("name").eq("id", package_id).single();
   await logBookingToSheet({
     bookingId: inserted?.id,
     clientName: client_name,
@@ -72,6 +101,11 @@ export async function createBooking(
     celebrantName: celebrant_name,
     turningAge: turning_age,
     theme,
+    eventType: service.category === "coverage" ? event_type : undefined,
+    eventPlacePrimary: service.category === "coverage" ? event_place_primary?.trim() : undefined,
+    eventPlaceSecondary: service.category === "coverage" && event_type && COVERAGE_SECOND_PLACE_EVENTS.has(event_type)
+      ? event_place_secondary?.trim()
+      : undefined,
   });
 
   revalidatePath("/calendar");
@@ -325,5 +359,168 @@ export async function sendGalleryEmail(
     sessionGalleryUrl: `${appUrl}/my-booking/${data.booking_token}`,
   });
 
+  return { success: true };
+}
+
+export async function updateProductionStatus(
+  bookingId: string,
+  productionStatus: ProductionStatus
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  if (!PRODUCTION_STATUS_ORDER.includes(productionStatus)) {
+    return { error: "Invalid production status." };
+  }
+
+  const { error } = await supabase
+    .from("bookings")
+    .update({ production_status: productionStatus })
+    .eq("id", bookingId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/calendar");
+  revalidatePath("/gallery");
+  return { success: true };
+}
+
+export async function updateInternalNotes(
+  bookingId: string,
+  internalNotes: string
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { error } = await supabase
+    .from("bookings")
+    .update({ internal_notes: internalNotes.trim() || null })
+    .eq("id", bookingId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/calendar");
+  return { success: true };
+}
+
+export async function updateAttendanceStatus(
+  bookingId: string,
+  attendanceStatus: AttendanceStatus
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  if (!["scheduled", "arrived", "no_show"].includes(attendanceStatus)) {
+    return { error: "Invalid attendance status." };
+  }
+
+  const update =
+    attendanceStatus === "no_show"
+      ? { attendance_status: attendanceStatus, no_show_at: new Date().toISOString(), no_show_by: user.id }
+      : { attendance_status: attendanceStatus, no_show_at: null, no_show_by: null };
+
+  const { error } = await supabase
+    .from("bookings")
+    .update(update)
+    .eq("id", bookingId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/calendar");
+  return { success: true };
+}
+
+export async function cancelBookingWithReason(
+  bookingId: string,
+  reason: string
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const cleanReason = reason.trim();
+  if (cleanReason.length < 3) {
+    return { error: "Please add a short reason before cancelling." };
+  }
+
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      booking_status: "cancelled",
+      cancel_reason: cleanReason,
+      cancelled_at: new Date().toISOString(),
+      cancelled_by: user.id,
+    })
+    .eq("id", bookingId);
+
+  if (error) return { error: error.message };
+
+  await updateBookingInSheet(bookingId, { bookingStatus: "cancelled" });
+
+  revalidatePath("/");
+  revalidatePath("/calendar");
+  revalidatePath("/payments");
+  return { success: true };
+}
+
+export async function rescheduleBooking(
+  bookingId: string,
+  bookingDate: string,
+  bookingTime: string
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(bookingDate)) {
+    return { error: "Please choose a valid date." };
+  }
+  if (!/^\d{2}:\d{2}$/.test(bookingTime)) {
+    return { error: "Please choose a valid time." };
+  }
+
+  const { data: booking, error: fetchError } = await supabase
+    .from("bookings")
+    .select("booking_date, booking_time, internal_notes")
+    .eq("id", bookingId)
+    .single();
+
+  if (fetchError || !booking) return { error: "Booking not found." };
+
+  if (booking.booking_date === bookingDate && booking.booking_time.slice(0, 5) === bookingTime) {
+    return { success: true };
+  }
+
+  const note = `Rescheduled from ${booking.booking_date} ${booking.booking_time.slice(0, 5)} to ${bookingDate} ${bookingTime}.`;
+  const existingNotes = typeof booking.internal_notes === "string" ? booking.internal_notes.trim() : "";
+  const internalNotes = existingNotes ? `${existingNotes}\n${note}` : note;
+
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      booking_date: bookingDate,
+      booking_time: bookingTime,
+      internal_notes: internalNotes,
+      reminder_sent: false,
+    })
+    .eq("id", bookingId);
+
+  if (error) return { error: error.message };
+
+  await updateBookingInSheet(bookingId, {
+    bookingDate,
+    bookingTime,
+  });
+
+  revalidatePath("/");
+  revalidatePath("/calendar");
+  revalidatePath("/payments");
+  revalidatePath("/gallery");
   return { success: true };
 }

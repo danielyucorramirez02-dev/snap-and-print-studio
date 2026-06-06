@@ -17,6 +17,8 @@ import { sendBookingConfirmation } from "@/lib/email";
 import { logBookingToSheet } from "@/lib/google-sheets";
 import type { Booking, Service } from "@/types";
 
+const COVERAGE_EVENT_TYPES = ["Debut", "Birthday", "Baptism", "Wedding", "Other"] as const;
+
 export interface AvailableSlotsResult {
   slots: string[];
   reason: SlotAvailabilityReason;
@@ -213,6 +215,9 @@ export async function createPublicBooking(input: {
   celebrantName?: string;
   turningAge?: string;
   theme?: string;
+  eventType?: string;
+  eventPlacePrimary?: string;
+  eventPlaceSecondary?: string;
 }): Promise<{ success: true; token: string; status: string } | { error: string }> {
   const supabase = await createClient();
 
@@ -224,6 +229,15 @@ export async function createPublicBooking(input: {
 
   if (!serviceData) return { error: "Package not found." };
   const service = serviceData as Service;
+
+  if (service.category === "coverage") {
+    if (!input.eventType || !COVERAGE_EVENT_TYPES.includes(input.eventType as typeof COVERAGE_EVENT_TYPES[number])) {
+      return { error: "Please choose the event type." };
+    }
+    if (!input.eventPlacePrimary?.trim()) {
+      return { error: "Please enter the event place." };
+    }
+  }
 
   const block = await fetchDateBlock(supabase, input.date);
   if (block.fullDay) {
@@ -324,6 +338,9 @@ export async function createPublicBooking(input: {
     celebrantName: input.celebrantName,
     turningAge: input.turningAge,
     theme: input.theme,
+    eventType: input.eventType,
+    eventPlacePrimary: input.eventPlacePrimary,
+    eventPlaceSecondary: input.eventPlaceSecondary,
   });
 
   return { success: true, token, status: bookingStatus };

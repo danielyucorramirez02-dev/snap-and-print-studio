@@ -13,6 +13,9 @@ import { format } from "date-fns";
 import { formatPeso } from "@/lib/utils/formatters";
 import type { Service } from "@/types";
 
+const COVERAGE_EVENT_TYPES = ["Debut", "Birthday", "Baptism", "Wedding", "Other"] as const;
+const COVERAGE_SECOND_PLACE_EVENTS = new Set<string>(["Baptism", "Wedding"]);
+
 interface BookingModalProps {
   services: Service[];
   onClose: () => void;
@@ -41,19 +44,25 @@ export default function BookingModal({ services, onClose }: BookingModalProps) {
       total_amount: 0,
       downpayment_amount: 0,
       notes: "",
+      event_type: "",
+      event_place_primary: "",
+      event_place_secondary: "",
     },
   });
 
   const selectedPackageId = watch("package_id");
+  const coverageEventType = watch("event_type") ?? "";
   const totalAmount = watch("total_amount") || 0;
   const downpaymentAmount = watch("downpayment_amount") || 0;
   const balance = Number(totalAmount) - Number(downpaymentAmount);
+  const selectedService = services.find((s) => s.id === selectedPackageId);
+  const isCoverage = selectedService?.category === "coverage";
+  const canAddSecondPlace = COVERAGE_SECOND_PLACE_EVENTS.has(coverageEventType);
 
   useEffect(() => {
     if (!selectedPackageId) return;
-    const pkg = services.find((s) => s.id === selectedPackageId);
-    if (pkg) setValue("total_amount", pkg.price, { shouldValidate: false });
-  }, [selectedPackageId, services, setValue]);
+    if (selectedService) setValue("total_amount", selectedService.price, { shouldValidate: false });
+  }, [selectedPackageId, selectedService, setValue]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -179,6 +188,56 @@ export default function BookingModal({ services, onClose }: BookingModalProps) {
               <p className="text-red-400 text-xs">{errors.package_id.message}</p>
             )}
           </div>
+
+          {/* Coverage Details */}
+          {isCoverage && (
+            <div className="space-y-3 rounded-xl border border-brand-500/20 bg-charcoal-900 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-charcoal-500">Coverage Details</p>
+              <div className="space-y-1.5">
+                <Label className="text-charcoal-300">Event <span className="text-red-400">*</span></Label>
+                <input type="hidden" {...register("event_type")} />
+                <select
+                  value={coverageEventType}
+                  onChange={(e) => {
+                    setValue("event_type", e.target.value, { shouldValidate: true });
+                    if (!COVERAGE_SECOND_PLACE_EVENTS.has(e.target.value)) {
+                      setValue("event_place_secondary", "", { shouldValidate: false });
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-md bg-charcoal-800 border border-charcoal-700 text-white text-sm focus:outline-none focus:border-brand-500"
+                >
+                  <option value="">Select event type</option>
+                  {COVERAGE_EVENT_TYPES.map((event) => (
+                    <option key={event} value={event}>{event}</option>
+                  ))}
+                </select>
+                {errors.event_type && (
+                  <p className="text-red-400 text-xs">{errors.event_type.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-charcoal-300">Place <span className="text-red-400">*</span></Label>
+                <Input
+                  {...register("event_place_primary")}
+                  placeholder="e.g. St. Augustine Parish, Pandi"
+                  className="bg-charcoal-800 border-charcoal-700 text-white placeholder:text-charcoal-500 focus:border-brand-500"
+                />
+                {errors.event_place_primary && (
+                  <p className="text-red-400 text-xs">{errors.event_place_primary.message}</p>
+                )}
+              </div>
+              {canAddSecondPlace && (
+                <div className="space-y-1.5">
+                  <Label className="text-charcoal-300">Second Place <span className="text-charcoal-500 text-xs font-normal">(optional)</span></Label>
+                  <Input
+                    {...register("event_place_secondary")}
+                    placeholder="e.g. Reception venue"
+                    className="bg-charcoal-800 border-charcoal-700 text-white placeholder:text-charcoal-500 focus:border-brand-500"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Amounts */}
           <div className="grid grid-cols-2 gap-3">

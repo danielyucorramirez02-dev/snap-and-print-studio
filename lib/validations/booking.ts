@@ -13,6 +13,9 @@ export const bookingSchema = z.object({
   celebrant_name: z.string().optional(),
   turning_age: z.string().optional(),
   theme: z.string().optional(),
+  event_type: z.string().optional(),
+  event_place_primary: z.string().optional(),
+  event_place_secondary: z.string().optional(),
 }).refine(
   (d) => d.downpayment_amount <= d.total_amount,
   { message: "Downpayment cannot exceed the total amount", path: ["downpayment_amount"] }

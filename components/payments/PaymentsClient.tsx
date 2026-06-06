@@ -15,9 +15,19 @@ import {
   X,
   Loader2,
   AlertCircle,
+  CalendarClock,
+  Receipt,
+  Wallet,
+  ArrowUpRight,
 } from "lucide-react";
 import PaymentModal from "@/components/payments/PaymentModal";
+import BookingDrawer from "@/components/bookings/BookingDrawer";
 import { approveDownpaymentReceipt } from "@/app/(dashboard)/payments/actions";
+import {
+  PRODUCTION_STATUS_SHORT_LABELS,
+  PRODUCTION_STATUS_STYLES,
+  normalizeProductionStatus,
+} from "@/lib/booking-production";
 import type { Booking, PaymentHistory, UserRole, PaymentStatus, PaymentMethod } from "@/types";
 
 interface PaymentsClientProps {
@@ -55,6 +65,16 @@ const FILTERS: { id: "all" | PaymentStatus; label: string }[] = [
   { id: "paid",    label: "Paid" },
 ];
 
+const BOOKING_STATUS_STYLES: Record<Booking["booking_status"], string> = {
+  confirmed: "border-green-500/25 bg-green-500/10 text-green-300",
+  pending: "border-amber-500/25 bg-amber-500/10 text-amber-300",
+  cancelled: "border-red-500/25 bg-red-500/10 text-red-300",
+};
+
+function manilaToday(): string {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+}
+
 // A booking is waiting on staff: a GCash receipt is uploaded but not yet approved.
 function needsApproval(b: Booking): boolean {
   return !!b.receipt_url && !b.downpayment_paid && b.payment_status !== "paid";
@@ -66,18 +86,21 @@ interface BookingRowProps {
   onAddPayment: (b: Booking) => void;
   onViewReceipt: (url: string) => void;
   onApproveReceipt: (b: Booking) => void;
+  onOpenDetails: (b: Booking) => void;
   approvingId: string | null;
 }
 
-function BookingRow({ booking, payments, onAddPayment, onViewReceipt, onApproveReceipt, approvingId }: BookingRowProps) {
+function BookingRow({ booking, payments, onAddPayment, onViewReceipt, onApproveReceipt, onOpenDetails, approvingId }: BookingRowProps) {
   const [expanded, setExpanded] = useState(false);
   const hasPendingReceipt = needsApproval(booking);
   const isApproving = approvingId === booking.id;
+  const productionStatus = normalizeProductionStatus(booking.production_status);
 
   return (
-    <div className="border border-charcoal-800 rounded-xl overflow-hidden">
+    <div className="border border-charcoal-800 rounded-xl overflow-hidden bg-charcoal-900">
       {/* Main row */}
-      <div className="flex items-center gap-4 px-4 py-3 bg-charcoal-900 hover:bg-charcoal-800/50 transition-colors">
+      <div className="flex flex-col gap-3 px-4 py-3 hover:bg-charcoal-800/50 transition-colors lg:flex-row lg:items-center lg:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
         {/* Receipt thumbnail */}
         {hasPendingReceipt && booking.receipt_url && (
           <button
@@ -105,6 +128,17 @@ function BookingRow({ booking, payments, onAddPayment, onViewReceipt, onApproveR
               <span className="ml-1 text-charcoal-600">· {booking.service.name}</span>
             )}
           </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold capitalize ${BOOKING_STATUS_STYLES[booking.booking_status]}`}>
+              {booking.booking_status}
+            </span>
+            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${PRODUCTION_STATUS_STYLES[productionStatus]}`}>
+              {PRODUCTION_STATUS_SHORT_LABELS[productionStatus]}
+            </span>
+            <span className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${STATUS_STYLES[booking.payment_status]}`}>
+              {STATUS_LABELS[booking.payment_status]}
+            </span>
+          </div>
           <p className="sm:hidden text-xs mt-0.5">
             <span className="text-charcoal-500">Balance: </span>
             <span className={booking.balance <= 0 ? "text-charcoal-400" : "text-amber-400 font-medium"}>
@@ -112,9 +146,10 @@ function BookingRow({ booking, payments, onAddPayment, onViewReceipt, onApproveR
             </span>
           </p>
         </div>
+        </div>
 
         {/* Amounts */}
-        <div className="hidden sm:flex items-center gap-6 text-right shrink-0">
+        <div className="grid grid-cols-3 gap-2 rounded-lg border border-charcoal-800 bg-charcoal-950/50 p-2 text-right sm:flex sm:items-center sm:gap-6 sm:border-0 sm:bg-transparent sm:p-0 lg:shrink-0">
           <div>
             <p className="text-xs text-charcoal-500">Total</p>
             <p className="text-white text-sm font-medium">{formatPeso(booking.total_amount)}</p>
@@ -132,11 +167,7 @@ function BookingRow({ booking, payments, onAddPayment, onViewReceipt, onApproveR
         </div>
 
         {/* Status + actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          <span className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${STATUS_STYLES[booking.payment_status]}`}>
-            {STATUS_LABELS[booking.payment_status]}
-          </span>
-
+        <div className="flex flex-wrap items-center gap-2 shrink-0 lg:justify-end">
           {hasPendingReceipt && (
             <Button
               onClick={() => onApproveReceipt(booking)}
@@ -152,6 +183,15 @@ function BookingRow({ booking, payments, onAddPayment, onViewReceipt, onApproveR
               Approve
             </Button>
           )}
+
+          <Button
+            onClick={() => onOpenDetails(booking)}
+            variant="outline"
+            className="h-7 px-2.5 text-xs border-charcoal-700 text-charcoal-300 hover:bg-charcoal-800 hover:text-white"
+          >
+            Details
+            <ArrowUpRight size={12} className="ml-1" />
+          </Button>
 
           {booking.payment_status !== "paid" && (
             <Button
@@ -213,6 +253,7 @@ export default function PaymentsClient({
   const [filter, setFilter] = useState<"all" | PaymentStatus>("all");
   const [search, setSearch] = useState("");
   const [activeBooking, setActiveBooking] = useState<Booking | undefined>(undefined);
+  const [drawerBooking, setDrawerBooking] = useState<Booking | undefined>(undefined);
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [approveError, setApproveError] = useState<string | null>(null);
@@ -262,6 +303,26 @@ export default function PaymentsClient({
     paid: bookings.filter((b) => b.payment_status === "paid").length,
   }), [bookings]);
 
+  const today = useMemo(() => manilaToday(), []);
+  const activeBookings = useMemo(() => bookings.filter((b) => b.booking_status !== "cancelled"), [bookings]);
+  const pendingReceipts = useMemo(() => activeBookings.filter(needsApproval), [activeBookings]);
+  const overdueBalances = useMemo(
+    () => activeBookings.filter((b) => b.payment_status !== "paid" && b.balance > 0 && b.booking_date < today),
+    [activeBookings, today]
+  );
+  const dueTodayBalances = useMemo(
+    () => activeBookings.filter((b) => b.payment_status !== "paid" && b.balance > 0 && b.booking_date === today),
+    [activeBookings, today]
+  );
+  const upcomingBalances = useMemo(
+    () => activeBookings.filter((b) => b.payment_status !== "paid" && b.balance > 0 && b.booking_date > today),
+    [activeBookings, today]
+  );
+  const pendingReceiptTotal = pendingReceipts.reduce((sum, b) => sum + b.downpayment_amount, 0);
+  const overdueTotal = overdueBalances.reduce((sum, b) => sum + b.balance, 0);
+  const dueTodayTotal = dueTodayBalances.reduce((sum, b) => sum + b.balance, 0);
+  const upcomingTotal = upcomingBalances.reduce((sum, b) => sum + b.balance, 0);
+
   return (
     <>
       {/* Summary cards */}
@@ -281,6 +342,79 @@ export default function PaymentsClient({
         <div className="bg-charcoal-900 border border-charcoal-800 rounded-xl p-4">
           <p className="text-xs text-charcoal-500 mb-1">Payments Logged</p>
           <p className="text-white text-xl font-bold">{paymentHistory.length}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 mb-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.055] overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-amber-500/15 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-500/25 bg-amber-500/10 text-amber-300">
+                <Receipt size={17} />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-white">Needs Receipt Approval</h2>
+                <p className="text-xs text-charcoal-400">{formatPeso(pendingReceiptTotal)} waiting for review</p>
+              </div>
+            </div>
+            <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-300">
+              {pendingReceipts.length}
+            </span>
+          </div>
+          {pendingReceipts.length === 0 ? (
+            <p className="px-4 py-5 text-sm text-charcoal-500">No uploaded receipts waiting for approval.</p>
+          ) : (
+            <div className="divide-y divide-amber-500/10">
+              {pendingReceipts.slice(0, 4).map((booking) => (
+                <div key={booking.id} className="flex items-center gap-3 px-4 py-3">
+                  {booking.receipt_url && (
+                    <button
+                      type="button"
+                      onClick={() => setViewingReceipt(booking.receipt_url)}
+                      className="h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-amber-500/30 bg-charcoal-900"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={booking.receipt_url} alt="Receipt" className="h-full w-full object-cover" />
+                    </button>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-white">{booking.client_name}</p>
+                    <p className="text-xs text-charcoal-400">{formatDate(booking.booking_date)} · {formatPeso(booking.downpayment_amount)}</p>
+                  </div>
+                  <Button
+                    onClick={() => handleApproveReceipt(booking)}
+                    disabled={approvingId === booking.id}
+                    className="h-8 bg-green-600 px-3 text-xs text-white hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {approvingId === booking.id ? <Loader2 size={13} className="mr-1 animate-spin" /> : <Check size={13} className="mr-1" />}
+                    Approve
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+          {[
+            { label: "Overdue", count: overdueBalances.length, value: overdueTotal, tone: "text-red-300 border-red-500/25 bg-red-500/10", icon: AlertCircle },
+            { label: "Due today", count: dueTodayBalances.length, value: dueTodayTotal, tone: "text-amber-300 border-amber-500/25 bg-amber-500/10", icon: CalendarClock },
+            { label: "Upcoming due", count: upcomingBalances.length, value: upcomingTotal, tone: "text-green-300 border-green-500/25 bg-green-500/10", icon: Wallet },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.label} className={`rounded-xl border p-4 ${item.tone}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Icon size={16} />
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em]">{item.label}</p>
+                  </div>
+                  <span className="text-xs font-semibold">{item.count}</span>
+                </div>
+                <p className="mt-2 text-xl font-bold text-white">{formatPeso(item.value)}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -328,6 +462,7 @@ export default function PaymentsClient({
               onAddPayment={setActiveBooking}
               onViewReceipt={(url) => setViewingReceipt(url)}
               onApproveReceipt={handleApproveReceipt}
+              onOpenDetails={setDrawerBooking}
               approvingId={approvingId}
             />
           ))
@@ -339,6 +474,13 @@ export default function PaymentsClient({
         <PaymentModal
           booking={activeBooking}
           onClose={() => setActiveBooking(undefined)}
+        />
+      )}
+
+      {drawerBooking && (
+        <BookingDrawer
+          booking={drawerBooking}
+          onClose={() => setDrawerBooking(undefined)}
         />
       )}
 

@@ -13,22 +13,58 @@ import { createClient } from "@/lib/supabase/client";
 import {
   ChevronLeft, CheckCircle2, Loader2, AlertCircle,
   Clock, CalendarDays, Copy, Check, Upload, X, MessageCircle,
+  Camera, Cake, PartyPopper, MapPin,
+  type LucideIcon,
 } from "lucide-react";
 import { MESSENGER_URL } from "@/lib/studio";
 import type { Service } from "@/types";
 
-type Step = "type" | "theme" | "package" | "additionals" | "datetime" | "info" | "payment" | "success";
+type Step = "type" | "theme" | "package" | "additionals" | "event" | "datetime" | "info" | "payment" | "success";
 type SessionType = "self-shoot" | "milestone" | "coverage";
 
-const SESSION_TYPES: { id: SessionType; emoji: string; label: string; desc: string }[] = [
-  { id: "self-shoot", emoji: "📸", label: "Self-Shoot", desc: "Solo, couples, or group sessions inside the studio" },
-  { id: "milestone",  emoji: "🎂", label: "Milestone",  desc: "Birthday, baptism, or special occasion shoots" },
-  { id: "coverage",   emoji: "🎉", label: "Photo Coverage", desc: "Event coverage at your venue" },
+const SESSION_TYPES: { id: SessionType; icon: LucideIcon; label: string; desc: string; img: string; tag: string }[] = [
+  {
+    id: "self-shoot",
+    icon: Camera,
+    label: "Self-Shoot",
+    desc: "Solo, couples, or group sessions inside the studio",
+    img: "/packages/solo-muna.jpg",
+    tag: "Studio",
+  },
+  {
+    id: "milestone",
+    icon: Cake,
+    label: "Milestone",
+    desc: "Birthday, baptism, or special occasion shoots",
+    img: "/theme-photos/pink-castle.jpg",
+    tag: "Setup",
+  },
+  {
+    id: "coverage",
+    icon: PartyPopper,
+    label: "Photo Coverage",
+    desc: "Event coverage at your venue",
+    img: "/coverage/Debut.jpg",
+    tag: "Event",
+  },
 ];
 
 const STEPS_SELF_SHOOT: Step[] = ["type", "package", "additionals", "datetime", "info", "payment"];
 const STEPS_MILESTONE: Step[]  = ["type", "theme", "package", "datetime", "info", "payment"];
-const STEPS_OTHER: Step[]      = ["type", "package", "datetime", "info", "payment"];
+const STEPS_COVERAGE: Step[]   = ["type", "package", "event", "datetime", "info", "payment"];
+const MAX_STEPS = Math.max(STEPS_SELF_SHOOT.length, STEPS_MILESTONE.length, STEPS_COVERAGE.length);
+
+const STEP_LABELS: Record<Step, string> = {
+  type: "Session",
+  theme: "Theme",
+  package: "Package",
+  additionals: "Add-ons",
+  event: "Event Details",
+  datetime: "Schedule",
+  info: "Contact",
+  payment: "Payment",
+  success: "Done",
+};
 
 // Milestone themes — each with its sample setup photo in /public/theme-photos.
 const MILESTONE_THEMES: { value: string; emoji: string; img: string }[] = [
@@ -38,6 +74,9 @@ const MILESTONE_THEMES: { value: string; emoji: string; img: string }[] = [
   { value: "Pink Castle", emoji: "🏰", img: "/theme-photos/pink-castle.jpg" },
   { value: "Mermaid",     emoji: "🧜", img: "/theme-photos/mermaid.jpg" },
 ];
+
+const COVERAGE_EVENT_TYPES = ["Debut", "Birthday", "Baptism", "Wedding", "Other"] as const;
+const COVERAGE_SECOND_PLACE_EVENTS = new Set<string>(["Baptism", "Wedding"]);
 
 const GCASH_NUMBER = "09623028470";
 const GCASH_NAME   = "Daniel R.";
@@ -58,16 +97,22 @@ function packageImage(name: string): string | null {
   return null;
 }
 
-function StepIndicator({ index, total }: { index: number; total: number }) {
+function StepIndicator({ index, total, label }: { index: number; total: number; label: string }) {
   if (index < 0) return null;
   return (
-    <div className="flex gap-1 mb-6">
-      {Array.from({ length: total }).map((_, i) => (
-        <div
-          key={i}
-          className={`h-1 flex-1 rounded-full transition-colors ${i <= index ? "bg-brand-500" : "bg-charcoal-800"}`}
-        />
-      ))}
+    <div className="mb-6">
+      <div className="mb-2 flex items-center justify-between text-xs">
+        <span className="font-semibold uppercase tracking-[0.16em] text-brand-300">{label}</span>
+        <span className="text-charcoal-500">Step {index + 1} of {total}</span>
+      </div>
+      <div className="flex gap-1">
+        {Array.from({ length: total }).map((_, i) => (
+          <div
+            key={i}
+            className={`h-1.5 flex-1 rounded-full transition-colors ${i <= index ? "bg-brand-500" : "bg-charcoal-800"}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -102,6 +147,9 @@ export default function BookingFlow({ services }: BookingFlowProps) {
   const [celebrantName, setCelebrantName] = useState("");
   const [turningAge, setTurningAge] = useState("");
   const [milestoneTheme, setMilestoneTheme] = useState("");
+  const [coverageEventType, setCoverageEventType] = useState("");
+  const [coveragePlacePrimary, setCoveragePlacePrimary] = useState("");
+  const [coveragePlaceSecondary, setCoveragePlaceSecondary] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [downpaymentConfirmed, setDownpaymentConfirmed] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -118,7 +166,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
   const stepsForFlow =
     sessionType === "self-shoot" ? STEPS_SELF_SHOOT
     : sessionType === "milestone" ? STEPS_MILESTONE
-    : STEPS_OTHER;
+    : STEPS_COVERAGE;
   const stepIndex = stepsForFlow.indexOf(step);
   const totalSteps = stepsForFlow.length;
 
@@ -140,6 +188,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
   const selectedAddons = addons.filter((a) => selectedAddonIds.has(a.id));
   const addonTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0);
   const grandTotal = (selectedService?.price ?? 0) + addonTotal;
+  const canAddSecondPlace = COVERAGE_SECOND_PLACE_EVENTS.has(coverageEventType);
 
   const toggleAddon = (id: string) => {
     setSelectedAddonIds((prev) => {
@@ -185,6 +234,14 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       if (!celebrantName.trim()) e.celebrantName = "Celebrant name is required";
       if (!turningAge.trim()) e.turningAge = "Turning age is required";
     }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const validateCoverage = () => {
+    const e: Record<string, string> = {};
+    if (!coverageEventType) e.coverageEventType = "Event type is required";
+    if (!coveragePlacePrimary.trim()) e.coveragePlacePrimary = "Event place is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -243,6 +300,13 @@ export default function BookingFlow({ services }: BookingFlowProps) {
         noteParts.push(`Turning: ${turningAge}`);
         noteParts.push(`Theme: ${milestoneTheme}`);
       }
+      if (sessionType === "coverage") {
+        noteParts.push(`Event: ${coverageEventType}`);
+        noteParts.push(`Place: ${coveragePlacePrimary.trim()}`);
+        if (canAddSecondPlace && coveragePlaceSecondary.trim()) {
+          noteParts.push(`Second place: ${coveragePlaceSecondary.trim()}`);
+        }
+      }
       if (selectedAddons.length > 0) {
         noteParts.push("Additionals: " + selectedAddons.map((a) => `${a.label} (₱${a.price})`).join(", "));
       }
@@ -262,6 +326,9 @@ export default function BookingFlow({ services }: BookingFlowProps) {
         celebrantName: sessionType === "milestone" ? celebrantName : undefined,
         turningAge: sessionType === "milestone" ? turningAge : undefined,
         theme: sessionType === "milestone" ? milestoneTheme : undefined,
+        eventType: sessionType === "coverage" ? coverageEventType : undefined,
+        eventPlacePrimary: sessionType === "coverage" ? coveragePlacePrimary.trim() : undefined,
+        eventPlaceSecondary: sessionType === "coverage" && canAddSecondPlace ? coveragePlaceSecondary.trim() : undefined,
       });
 
       if ("error" in res) { setServerError(res.error); return; }
@@ -274,28 +341,42 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
   // ── Step: Session Type ────────────────────────────────────────────────────
   if (step === "type") return (
-    <div key="step-type" className="animate-fade-in-up">
-      {/* Flow length is unknown until the type is picked; show the longest
-          (self-shoot) so the bar never grows mid-flow. */}
-      <StepIndicator index={0} total={STEPS_SELF_SHOOT.length} />
-      <h2 className="text-white font-semibold text-lg mb-1">What type of session?</h2>
+    <div key="step-type" className="min-w-0 animate-fade-in-up">
+      <StepIndicator index={0} total={MAX_STEPS} label={STEP_LABELS.type} />
+      <h2 className="text-white font-semibold text-xl mb-1">What type of session?</h2>
       <p className="text-charcoal-400 text-sm mb-5">Choose the session that fits your occasion</p>
       <div className="space-y-3">
-        {SESSION_TYPES.map((t) => (
+        {SESSION_TYPES.map((t) => {
+          const Icon = t.icon;
+          return (
           <button key={t.id} onClick={() => {
-            setSessionType(t.id);
-            setSelectedService(null);
-            setSelectedAddonIds(new Set());
-            setStep(t.id === "milestone" ? "theme" : "package");
-          }}
-            className="group w-full flex items-center gap-4 p-4 rounded-xl bg-charcoal-900 border border-charcoal-700 hover:border-brand-500/60 hover:bg-brand-500/5 hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 ease-out text-left">
-            <span className="text-3xl transition-transform duration-200 group-hover:scale-110">{t.emoji}</span>
-            <div>
-              <p className="text-white font-medium">{t.label}</p>
-              <p className="text-charcoal-400 text-sm">{t.desc}</p>
+              setSessionType(t.id);
+              setSelectedService(null);
+              setSelectedAddonIds(new Set());
+              setCoverageEventType("");
+              setCoveragePlacePrimary("");
+              setCoveragePlaceSecondary("");
+              setStep(t.id === "milestone" ? "theme" : "package");
+            }}
+            className="group flex min-w-0 w-full max-w-full overflow-hidden rounded-xl border border-white/10 bg-charcoal-900/80 text-left shadow-lg shadow-black/20 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-brand-500/60 hover:bg-brand-500/5 hover:shadow-brand-500/10 active:translate-y-0 active:scale-[0.99]">
+            <div className="relative min-h-[96px] w-[92px] shrink-0 overflow-hidden bg-charcoal-800">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={t.img} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-black/45" />
+              <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
+                <Icon size={11} />
+                {t.tag}
+              </div>
+            </div>
+            <div className="min-w-0 p-4">
+              <p className="text-base font-semibold text-white">{t.label}</p>
+              <p className="mt-1 whitespace-normal break-words text-sm leading-5 text-charcoal-400">{t.desc}</p>
+              <span className="mt-3 inline-flex items-center text-xs font-semibold text-brand-300">
+                Select package
+              </span>
             </div>
           </button>
-        ))}
+        );})}
       </div>
     </div>
   );
@@ -306,7 +387,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       <button onClick={() => setStep("type")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
       </button>
-      <StepIndicator index={stepIndex} total={totalSteps} />
+      <StepIndicator index={stepIndex} total={totalSteps} label={STEP_LABELS.theme} />
       <h2 className="text-white font-semibold text-lg mb-1">Pick a theme</h2>
       <p className="text-charcoal-400 text-sm mb-5">Choose the setup for your milestone shoot — tap one to continue</p>
       <div className="grid grid-cols-2 gap-2.5">
@@ -344,7 +425,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       <button onClick={() => setStep(sessionType === "milestone" ? "theme" : "type")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
       </button>
-      <StepIndicator index={stepIndex} total={totalSteps} />
+      <StepIndicator index={stepIndex} total={totalSteps} label={STEP_LABELS.package} />
       <h2 className="text-white font-semibold text-lg mb-1">Choose a package</h2>
       <p className="text-charcoal-400 text-sm mb-5">All prices are in Philippine Peso (₱)</p>
       {sessionType === "self-shoot" && (
@@ -363,7 +444,11 @@ export default function BookingFlow({ services }: BookingFlowProps) {
               setDate("");
               setTime("");
               setSlots([]);
-              setStep(sessionType === "self-shoot" ? "additionals" : "datetime");
+              setStep(
+                sessionType === "self-shoot" ? "additionals"
+                : sessionType === "coverage" ? "event"
+                : "datetime"
+              );
             }}
               className="w-full p-4 rounded-xl bg-charcoal-900 border border-charcoal-700 hover:border-brand-500/60 hover:bg-brand-500/5 hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.99] transition-all duration-200 ease-out text-left">
               <div className="flex items-start gap-3">
@@ -404,7 +489,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       <button onClick={() => setStep("package")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
       </button>
-      <StepIndicator index={stepIndex} total={totalSteps} />
+      <StepIndicator index={stepIndex} total={totalSteps} label={STEP_LABELS.additionals} />
       <h2 className="text-white font-semibold text-lg mb-1">
         Add-ons <span className="text-charcoal-500 text-sm font-normal">(optional)</span>
       </h2>
@@ -462,13 +547,98 @@ export default function BookingFlow({ services }: BookingFlowProps) {
   );
 
   // ── Step: Date & Time ─────────────────────────────────────────────────────
+  if (step === "event") return (
+    <div key="step-event" className="animate-fade-in-up">
+      <button onClick={() => setStep("package")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
+        <ChevronLeft size={16} /> Back
+      </button>
+      <StepIndicator index={stepIndex} total={totalSteps} label={STEP_LABELS.event} />
+      <h2 className="text-white font-semibold text-xl mb-1">Event details</h2>
+      <p className="text-charcoal-400 text-sm mb-5">Tell us what we&apos;re covering and where we&apos;re going</p>
+
+      <div className="grid grid-cols-2 gap-2.5 mb-5">
+        {COVERAGE_EVENT_TYPES.map((event) => {
+          const selected = coverageEventType === event;
+          return (
+            <button
+              key={event}
+              type="button"
+              onClick={() => {
+                setCoverageEventType(event);
+                if (!COVERAGE_SECOND_PLACE_EVENTS.has(event)) setCoveragePlaceSecondary("");
+              }}
+              className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
+                selected
+                  ? "border-brand-500 bg-brand-500/15 text-brand-200 ring-2 ring-brand-500/25"
+                  : "border-charcoal-700 bg-charcoal-800 text-charcoal-300 hover:border-brand-500/40 hover:text-white"
+              }`}
+            >
+              {event}
+            </button>
+          );
+        })}
+      </div>
+      {errors.coverageEventType && <p className="text-red-400 text-xs -mt-3 mb-4">{errors.coverageEventType}</p>}
+
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <label className="text-charcoal-300 text-sm">Place <span className="text-red-400">*</span></label>
+          <div className="relative">
+            <MapPin size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-500" />
+            <input
+              value={coveragePlacePrimary}
+              onChange={(e) => setCoveragePlacePrimary(e.target.value)}
+              placeholder="e.g. St. Augustine Parish, Pandi"
+              className="w-full rounded-lg border border-charcoal-700 bg-charcoal-800 px-9 py-2.5 text-sm text-white placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500"
+            />
+          </div>
+          {errors.coveragePlacePrimary && <p className="text-red-400 text-xs">{errors.coveragePlacePrimary}</p>}
+        </div>
+
+        {canAddSecondPlace && (
+          <div className="space-y-1.5">
+            <label className="text-charcoal-300 text-sm">
+              Second Place <span className="text-charcoal-500 text-xs font-normal">(optional)</span>
+            </label>
+            <div className="relative">
+              <MapPin size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-500" />
+              <input
+                value={coveragePlaceSecondary}
+                onChange={(e) => setCoveragePlaceSecondary(e.target.value)}
+                placeholder="e.g. Reception venue"
+                className="w-full rounded-lg border border-charcoal-700 bg-charcoal-800 px-9 py-2.5 text-sm text-white placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500"
+              />
+            </div>
+          </div>
+        )}
+
+        {canAddSecondPlace && (
+          <div className="rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 py-2.5 text-xs leading-5 text-brand-200">
+            For baptism or wedding, the first place is usually church or ceremony. The second place can be the reception venue.
+          </div>
+        )}
+
+        <button
+          onClick={() => { if (validateCoverage()) setStep("datetime"); }}
+          className="w-full rounded-xl bg-brand-500 py-3.5 text-sm font-semibold text-white shadow-lg shadow-brand-500/30 transition-all duration-200 ease-out hover:bg-brand-600 hover:shadow-xl hover:shadow-brand-500/40 active:scale-[0.98]"
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+
   if (step === "datetime") return (
     <div key="step-datetime" className="animate-fade-in-up">
-      <button onClick={() => setStep(sessionType === "self-shoot" ? "additionals" : "package")}
+      <button onClick={() => setStep(
+        sessionType === "self-shoot" ? "additionals"
+        : sessionType === "coverage" ? "event"
+        : "package"
+      )}
         className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
       </button>
-      <StepIndicator index={stepIndex} total={totalSteps} />
+      <StepIndicator index={stepIndex} total={totalSteps} label={STEP_LABELS.datetime} />
       <h2 className="text-white font-semibold text-lg mb-1">Pick a date &amp; time</h2>
       {isRequestBooking && (
         <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm mb-4">
@@ -650,7 +820,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       <button onClick={() => setStep("datetime")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
       </button>
-      <StepIndicator index={stepIndex} total={totalSteps} />
+      <StepIndicator index={stepIndex} total={totalSteps} label={STEP_LABELS.info} />
       <h2 className="text-white font-semibold text-lg mb-1">Your details</h2>
       <p className="text-charcoal-400 text-sm mb-5">We&apos;ll use this to confirm your booking</p>
 
@@ -668,6 +838,24 @@ export default function BookingFlow({ services }: BookingFlowProps) {
           <span className="text-charcoal-400">Time</span>
           <span className="text-white">{formatSlotLabel(time)}{isRequestBooking ? " (preferred)" : ""}</span>
         </div>
+        {sessionType === "coverage" && coverageEventType && (
+          <div className="flex justify-between text-sm">
+            <span className="text-charcoal-400">Event</span>
+            <span className="text-white">{coverageEventType}</span>
+          </div>
+        )}
+        {sessionType === "coverage" && coveragePlacePrimary.trim() && (
+          <div className="flex justify-between gap-3 text-sm">
+            <span className="text-charcoal-400">Place</span>
+            <span className="text-white text-right">{coveragePlacePrimary.trim()}</span>
+          </div>
+        )}
+        {sessionType === "coverage" && canAddSecondPlace && coveragePlaceSecondary.trim() && (
+          <div className="flex justify-between gap-3 text-sm">
+            <span className="text-charcoal-400">Second place</span>
+            <span className="text-white text-right">{coveragePlaceSecondary.trim()}</span>
+          </div>
+        )}
         {selectedAddons.length > 0 && (
           <div className="flex justify-between text-sm">
             <span className="text-charcoal-400">Add-ons</span>
@@ -749,7 +937,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       <button onClick={() => setStep("info")} className="flex items-center gap-1 text-charcoal-400 hover:text-white text-sm mb-4 transition-colors">
         <ChevronLeft size={16} /> Back
       </button>
-      <StepIndicator index={stepIndex} total={totalSteps} />
+      <StepIndicator index={stepIndex} total={totalSteps} label={STEP_LABELS.payment} />
       <h2 className="text-white font-semibold text-lg mb-1">Send Downpayment</h2>
       <p className="text-charcoal-400 text-sm mb-5">
         A downpayment is required to secure your booking slot.
@@ -916,6 +1104,24 @@ export default function BookingFlow({ services }: BookingFlowProps) {
           <span className="text-charcoal-400">Time</span>
           <span className="text-white">{formatSlotLabel(time)}{isRequestBooking ? " (preferred)" : ""}</span>
         </div>
+        {sessionType === "coverage" && (
+          <>
+            <div className="flex justify-between text-sm">
+              <span className="text-charcoal-400">Event</span>
+              <span className="text-white">{coverageEventType}</span>
+            </div>
+            <div className="flex justify-between gap-3 text-sm">
+              <span className="text-charcoal-400">Place</span>
+              <span className="text-white text-right">{coveragePlacePrimary.trim()}</span>
+            </div>
+            {canAddSecondPlace && coveragePlaceSecondary.trim() && (
+              <div className="flex justify-between gap-3 text-sm">
+                <span className="text-charcoal-400">Second place</span>
+                <span className="text-white text-right">{coveragePlaceSecondary.trim()}</span>
+              </div>
+            )}
+          </>
+        )}
         {sessionType === "milestone" && (
           <>
             <div className="flex justify-between text-sm">

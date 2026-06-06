@@ -22,6 +22,7 @@ function getSheets() {
 // I: Total  J: Downpayment  K: Balance  L: Booking Status
 // M: Payment Status  N: Downpayment Receipt  O: Booking ID  P: Session Gallery
 // Q: Celebrant  R: Turning Age  S: Theme
+// T: Event  U: Place  V: Second Place
 
 async function findBookingRow(
   client: NonNullable<ReturnType<typeof getSheets>>,
@@ -60,6 +61,9 @@ export async function logBookingToSheet(data: {
   celebrantName?: string;
   turningAge?: string;
   theme?: string;
+  eventType?: string;
+  eventPlacePrimary?: string;
+  eventPlaceSecondary?: string;
 }) {
   const client = getSheets();
   if (!client) return;
@@ -73,14 +77,14 @@ export async function logBookingToSheet(data: {
     // Ensure new column headers exist (idempotent — same values written every time)
     await client.sheets.spreadsheets.values.update({
       spreadsheetId: client.sheetId,
-      range: "Bookings!O1:S1",
+      range: "Bookings!O1:V1",
       valueInputOption: "RAW",
-      requestBody: { values: [["Booking ID", "Session Gallery", "Celebrant", "Turning Age", "Theme"]] },
+      requestBody: { values: [["Booking ID", "Session Gallery", "Celebrant", "Turning Age", "Theme", "Event", "Place", "Second Place"]] },
     });
 
     await client.sheets.spreadsheets.values.append({
       spreadsheetId: client.sheetId,
-      range: "Bookings!A:S",
+      range: "Bookings!A:V",
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: [[
@@ -103,6 +107,9 @@ export async function logBookingToSheet(data: {
           data.celebrantName ?? "",  // Q
           data.turningAge ?? "",     // R
           data.theme ?? "",          // S
+          data.eventType ?? "",      // T
+          data.eventPlacePrimary ?? "", // U
+          data.eventPlaceSecondary ?? "", // V
         ]],
       },
     });
@@ -114,6 +121,8 @@ export async function logBookingToSheet(data: {
 export async function updateBookingInSheet(
   bookingId: string,
   updates: {
+    bookingDate?: string;
+    bookingTime?: string;
     bookingStatus?: string;
     paymentStatus?: string;
     total?: number;
@@ -130,6 +139,13 @@ export async function updateBookingInSheet(
     if (!rowNum) return;
 
     const batchData: Array<{ range: string; values: unknown[][] }> = [];
+
+    if (updates.bookingDate !== undefined) {
+      batchData.push({ range: `Bookings!E${rowNum}`, values: [[updates.bookingDate]] });
+    }
+    if (updates.bookingTime !== undefined) {
+      batchData.push({ range: `Bookings!F${rowNum}`, values: [[updates.bookingTime]] });
+    }
 
     if (updates.total !== undefined) {
       batchData.push({ range: `Bookings!I${rowNum}`, values: [[`₱${updates.total.toLocaleString()}`]] });

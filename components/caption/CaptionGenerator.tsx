@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { generateCaption } from "@/app/(dashboard)/caption/actions";
+import { generateCaption, modifyCaption } from "@/app/(dashboard)/caption/actions";
 import { Button } from "@/components/ui/button";
 import {
   ImagePlus,
@@ -11,6 +11,7 @@ import {
   Check,
   RefreshCw,
   AlertCircle,
+  Wand2,
 } from "lucide-react";
 
 type SessionType = "self-shoot" | "milestone" | "coverage";
@@ -22,6 +23,13 @@ const SESSION_TYPES: { id: SessionType; label: string; emoji: string }[] = [
 ];
 
 const MAX_IMAGES = 5;
+
+const QUICK_MODIFIERS = [
+  "Make it shorter",
+  "Make it more Taglish",
+  "Make it warmer",
+  "Make it more playful",
+];
 
 function resizeToBase64(file: File, maxDim = 900): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -57,7 +65,9 @@ export default function CaptionGenerator() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [fromInstax, setFromInstax] = useState(false);
+  const [modifyPrompt, setModifyPrompt] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [isModifying, startModifyTransition] = useTransition();
 
   // Pick up photos handed over from the Instax Maker's "Generate caption" button.
   useEffect(() => {
@@ -115,6 +125,20 @@ export default function CaptionGenerator() {
         setError(result.error);
       } else {
         setCaption(result.caption);
+        setModifyPrompt("");
+      }
+    });
+  };
+
+  const handleModify = (instruction = modifyPrompt) => {
+    setError("");
+    startModifyTransition(async () => {
+      const result = await modifyCaption(caption, instruction);
+      if ("error" in result) {
+        setError(result.error);
+      } else {
+        setCaption(result.caption);
+        setModifyPrompt("");
       }
     });
   };
@@ -249,6 +273,48 @@ export default function CaptionGenerator() {
               {caption}
             </pre>
           </div>
+
+          <div className="rounded-xl border border-charcoal-700 bg-charcoal-900 p-4 space-y-3">
+            <div>
+              <p className="text-charcoal-300 text-sm font-medium">Modify caption</p>
+              <p className="text-charcoal-500 text-xs mt-0.5">
+                Tell AI what to change, like make it shorter, more Taglish, or softer.
+              </p>
+            </div>
+            <textarea
+              value={modifyPrompt}
+              onChange={(e) => setModifyPrompt(e.target.value)}
+              rows={3}
+              placeholder="e.g. Make it shorter but keep the hashtags"
+              className="w-full px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 text-white text-sm placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500 resize-none"
+            />
+            <div className="flex flex-wrap gap-2">
+              {QUICK_MODIFIERS.map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => handleModify(label)}
+                  disabled={isModifying}
+                  className="rounded-full border border-charcoal-700 bg-charcoal-800 px-3 py-1.5 text-xs font-medium text-charcoal-300 transition-colors hover:border-brand-500/40 hover:text-white disabled:opacity-40"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <Button
+              onClick={() => handleModify()}
+              disabled={!modifyPrompt.trim() || isModifying}
+              className="w-full bg-charcoal-800 hover:bg-charcoal-700 border border-charcoal-700 text-white disabled:opacity-40"
+            >
+              {isModifying ? (
+                <RefreshCw size={15} className="mr-2 animate-spin" />
+              ) : (
+                <Wand2 size={15} className="mr-2" />
+              )}
+              {isModifying ? "Modifying caption…" : "Apply Modification"}
+            </Button>
+          </div>
+
           <div className="flex gap-3">
             <Button
               onClick={handleCopy}

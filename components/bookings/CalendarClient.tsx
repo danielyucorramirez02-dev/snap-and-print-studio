@@ -18,6 +18,11 @@ import { Button } from "@/components/ui/button";
 import { formatTime } from "@/lib/utils/formatters";
 import BookingModal from "@/components/bookings/BookingModal";
 import BookingDrawer from "@/components/bookings/BookingDrawer";
+import {
+  PRODUCTION_STATUS_SHORT_LABELS,
+  PRODUCTION_STATUS_STYLES,
+  normalizeProductionStatus,
+} from "@/lib/booking-production";
 import type { Booking, Service, UserRole, PaymentStatus, BlockedDate, BlockedTimeSlot } from "@/types";
 
 interface CalendarClientProps {
@@ -55,6 +60,7 @@ interface BookingChipProps {
 function BookingChip({ booking, onClick }: BookingChipProps) {
   const isPending = booking.booking_status === "pending";
   const chipClass = isPending ? PENDING_CHIP : STATUS_CHIP[booking.payment_status];
+  const productionStatus = normalizeProductionStatus(booking.production_status);
   return (
     <button
       onClick={(e) => { e.stopPropagation(); onClick(); }}
@@ -63,6 +69,10 @@ function BookingChip({ booking, onClick }: BookingChipProps) {
       {isPending && <span className="mr-0.5">⏳</span>}
       <span className="font-medium">{formatTime(booking.booking_time)}</span>{" "}
       <span>{booking.client_name}</span>
+      {booking.attendance_status === "no_show" && <span className="ml-1 text-red-300">| No-show</span>}
+      {!isPending && productionStatus !== "not_started" && (
+        <span className="ml-1 opacity-80">| {PRODUCTION_STATUS_SHORT_LABELS[productionStatus]}</span>
+      )}
     </button>
   );
 }
@@ -158,6 +168,7 @@ function DayDetailModal({ day, bookings, onBookingClick, onClose }: DayDetailMod
         <div className="overflow-y-auto divide-y divide-charcoal-800">
           {bookings.map((b) => {
             const isPending = b.booking_status === "pending";
+            const productionStatus = normalizeProductionStatus(b.production_status);
             return (
               <button
                 key={b.id}
@@ -172,6 +183,11 @@ function DayDetailModal({ day, bookings, onBookingClick, onClose }: DayDetailMod
                 <span className={`shrink-0 text-[11px] font-medium capitalize px-2 py-0.5 rounded-full border ${isPending ? PENDING_CHIP : STATUS_CHIP[b.payment_status]}`}>
                   {isPending ? "Pending" : b.payment_status}
                 </span>
+                {!isPending && (
+                  <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border ${PRODUCTION_STATUS_STYLES[productionStatus]}`}>
+                    {PRODUCTION_STATUS_SHORT_LABELS[productionStatus]}
+                  </span>
+                )}
               </button>
             );
           })}
