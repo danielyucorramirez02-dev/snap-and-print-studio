@@ -1,19 +1,35 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { jsPDF } from "jspdf";
 import { Upload, Download, X, ImagePlus, Sparkles, RotateCcw, Loader2 } from "lucide-react";
 
 const STUDIO_NAME = "Snap & Print Studio";
 const FONT_FAMILY = "'Dancing Script', cursive";
-const MAX_PHOTOS = 8;
+const MAX_PHOTOS = 60;
 const MAX_COLLAGE = 4;
 const MAX_CAPTION_IMAGES = 5;
 
+const WALL_SHEET_WIDTH = 1800;
+const WALL_SHEET_HEIGHT = 1200;
+const WALL_HALF_WIDTH = 900;
+const WALL_PHOTO_WIDTH = 820;
+const WALL_PHOTO_HEIGHT = 1010;
+const WALL_PHOTO_TOP = 35;
+const WALL_LOGO_MAX_WIDTH = 230;
+const WALL_LOGO_MAX_HEIGHT = 72;
+const WALL_LOGO_CENTER_Y = 1123;
+
+function wallPrintPdfName(date = new Date()) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `To-Post-On-Wall-${yyyy}-${mm}-${dd}.pdf`;
+}
+
 type FrameMode = "each" | "collage";
 
-// How the finished image looks: the white Instax card, or the plain photo
-// with the logo stamped on it as a watermark.
-type OutputStyle = "instax" | "logo";
+type OutputStyle = "instax" | "logo" | "wall-print";
 
 // Logo watermark spot — [t]op/[b]ottom + [l]eft/[m]iddle/[r]ight.
 type LogoPosition = "tl" | "tm" | "tr" | "bl" | "bm" | "br";
@@ -54,6 +70,10 @@ function loadImage(file: File): Promise<LoadedImage> {
     el.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Could not load image")); };
     el.src = url;
   });
+}
+
+function fileSortKey(file: File) {
+  return (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
 }
 
 // Fill the rect with the image, center-cropping any overflow ("cover").
@@ -251,6 +271,67 @@ async function renderWithLogo(photo: LoadedImage, pos: LogoPosition): Promise<st
   return canvas.toDataURL("image/png");
 }
 
+function drawWallHalf(
+  ctx: CanvasRenderingContext2D,
+  photo: LoadedImage | null,
+  logo: HTMLImageElement | null,
+  halfX: number
+) {
+  if (!photo) return;
+
+  const photoX = halfX + Math.round((WALL_HALF_WIDTH - WALL_PHOTO_WIDTH) / 2);
+  drawCover(ctx, photo.el, {
+    x: photoX,
+    y: WALL_PHOTO_TOP,
+    w: WALL_PHOTO_WIDTH,
+    h: WALL_PHOTO_HEIGHT,
+  });
+
+  if (!logo) return;
+
+  const scale = Math.min(
+    WALL_LOGO_MAX_WIDTH / logo.naturalWidth,
+    WALL_LOGO_MAX_HEIGHT / logo.naturalHeight
+  );
+  const logoW = logo.naturalWidth * scale;
+  const logoH = logo.naturalHeight * scale;
+  const logoX = halfX + (WALL_HALF_WIDTH - logoW) / 2;
+  const logoY = WALL_LOGO_CENTER_Y - logoH / 2;
+  ctx.drawImage(logo, logoX, logoY, logoW, logoH);
+}
+
+async function renderWallPrintSheets(photos: LoadedImage[]): Promise<string[]> {
+  const logo = await loadStudioLogo();
+  const sheets: string[] = [];
+
+  for (let i = 0; i < photos.length; i += 2) {
+    const canvas = document.createElement("canvas");
+    canvas.width = WALL_SHEET_WIDTH;
+    canvas.height = WALL_SHEET_HEIGHT;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas not supported");
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, WALL_SHEET_WIDTH, WALL_SHEET_HEIGHT);
+
+    drawWallHalf(ctx, photos[i], logo, 0);
+    drawWallHalf(ctx, photos[i + 1] ?? null, logo, WALL_HALF_WIDTH);
+
+    ctx.strokeStyle = "#d8d8d8";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(WALL_HALF_WIDTH, 0);
+    ctx.lineTo(WALL_HALF_WIDTH, WALL_SHEET_HEIGHT);
+    ctx.stroke();
+
+    sheets.push(canvas.toDataURL("image/jpeg", 0.95));
+  }
+
+  return sheets;
+}
+
 // Re-encode a finished PNG as a smaller JPEG so a whole batch of them fits
 // inside localStorage when handed off to the caption generator.
 function downscaleForCaption(dataUrl: string, maxDim = 1100): Promise<string> {
@@ -273,7 +354,7 @@ function downscaleForCaption(dataUrl: string, maxDim = 1100): Promise<string> {
 
 export default function PhotoToolClient() {
   const [images, setImages] = useState<LoadedImage[]>([]);   // uploaded photos
-  const [style, setStyle] = useState<OutputStyle>("instax"); // Instax card, or photo + logo
+  const [style, setStyle] = useState<OutputStyle>("instax");
   const [mode, setMode] = useState<FrameMode>("each");        // (Instax) frame each, or one collage
   const [logoPos, setLogoPos] = useState<LogoPosition>("br"); // (Photo + logo) watermark spot
   const [results, setResults] = useState<FramedImage[]>([]);  // rendered images
@@ -286,10 +367,19 @@ export default function PhotoToolClient() {
   const addFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setError("");
+    const imageFiles = Array.from(files)
+      .filter((file) => file.type.startsWith("image/"))
+      .sort((a, b) => fileSortKey(a).localeCompare(fileSortKey(b), undefined, { numeric: true }));
+
+    if (imageFiles.length === 0) {
+      setError("No image files found.");
+      return;
+    }
+
     const room = MAX_PHOTOS - images.length;
     if (room <= 0) { setError(`You can use up to ${MAX_PHOTOS} photos at a time.`); return; }
     try {
-      const loaded = await Promise.all(Array.from(files).slice(0, room).map(loadImage));
+      const loaded = await Promise.all(imageFiles.slice(0, room).map(loadImage));
       setImages((prev) => [...prev, ...loaded]);
     } catch {
       setError("One of those files could not be opened as an image.");
@@ -329,6 +419,8 @@ export default function PhotoToolClient() {
           // Photo + logo — one watermarked photo per result.
           frames = [];
           for (const img of images) frames.push(await renderWithLogo(img, logoPos));
+        } else if (style === "wall-print") {
+          frames = await renderWallPrintSheets(images);
         } else if (mode === "collage") {
           frames = [await renderFrame(images.slice(0, MAX_COLLAGE))];
         } else {
@@ -350,7 +442,7 @@ export default function PhotoToolClient() {
   const downloadOne = (img: FramedImage, index: number) => {
     const a = document.createElement("a");
     a.href = img.dataUrl;
-    a.download = `snap-print-${style === "instax" ? "instax" : "photo"}-${index + 1}.png`;
+    a.download = `snap-print-${style === "instax" ? "instax" : style === "logo" ? "photo" : "wall-print-sheet"}-${index + 1}.${style === "wall-print" ? "jpg" : "png"}`;
     a.click();
   };
 
@@ -359,6 +451,31 @@ export default function PhotoToolClient() {
       downloadOne(results[i], i);
       // Small gap so the browser doesn't drop back-to-back downloads.
       await new Promise((r) => setTimeout(r, 400));
+    }
+  };
+
+  const downloadWallPrintPdf = () => {
+    if (results.length === 0) return;
+    setBusy(true);
+    setError("");
+    try {
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "in",
+        format: [6, 4],
+        compress: true,
+      });
+
+      results.forEach((sheet, index) => {
+        if (index > 0) doc.addPage([6, 4], "landscape");
+        doc.addImage(sheet.dataUrl, "JPEG", 0, 0, 6, 4, undefined, "NONE");
+      });
+
+      doc.save(wallPrintPdfName());
+    } catch {
+      setError("Could not make the PDF. Please try again.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -382,7 +499,8 @@ export default function PhotoToolClient() {
     }
   };
 
-  const noun = style === "instax" ? "frame" : "photo";
+  const noun = style === "instax" ? "frame" : style === "logo" ? "photo" : "sheet";
+  const wallSheetCount = Math.ceil(images.length / 2);
 
   return (
     <div className="space-y-5">
@@ -409,6 +527,18 @@ export default function PhotoToolClient() {
           </button>
         )}
         <span className="text-charcoal-500 text-xs">{images.length}/{MAX_PHOTOS} photos</span>
+        <label className="inline-flex items-center gap-2 px-3 py-2.5 rounded-xl border border-charcoal-700 text-charcoal-300 hover:text-white hover:bg-charcoal-800 text-sm cursor-pointer transition-colors">
+          <Upload size={15} />
+          Add folder
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
+            className="hidden"
+            {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+          />
+        </label>
       </div>
 
       {error && <p className="text-red-400 text-sm">{error}</p>}
@@ -456,6 +586,17 @@ export default function PhotoToolClient() {
               }`}
             >
               🏷️ Photo + logo
+            </button>
+            <button
+              onClick={() => setStyle("wall-print")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                style === "wall-print"
+                  ? "bg-brand-500/15 text-brand-400 border-brand-500/30"
+                  : "bg-charcoal-900 text-charcoal-400 border-charcoal-700 hover:text-white hover:border-charcoal-600"
+              }`}
+            >
+              <Download size={15} className="inline mr-1.5" />
+              Wall print PDF
             </button>
           </div>
         </div>
@@ -517,6 +658,12 @@ export default function PhotoToolClient() {
         </div>
       )}
 
+      {images.length > 0 && style === "wall-print" && (
+        <p className="text-charcoal-500 text-xs">
+          Photos are paired by filename order. {images.length} photo{images.length !== 1 ? "s" : ""} will make {wallSheetCount} 4x6 PDF page{wallSheetCount !== 1 ? "s" : ""}.
+        </p>
+      )}
+
       {/* Results / empty state */}
       {images.length === 0 ? (
         <label className="flex flex-col items-center justify-center gap-3 py-16 rounded-2xl border-2 border-dashed border-charcoal-700 hover:border-brand-500/60 hover:bg-brand-500/5 cursor-pointer transition-colors">
@@ -563,16 +710,26 @@ export default function PhotoToolClient() {
           {/* Actions */}
           {results.length > 0 && !rendering && (
             <div className="flex flex-wrap gap-3 pt-1">
+              {style === "wall-print" && (
+                <button
+                  onClick={downloadWallPrintPdf}
+                  disabled={busy}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
+                >
+                  <Download size={16} />
+                  Download PDF print file
+                </button>
+              )}
               <button
                 onClick={downloadAll}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-colors"
               >
                 <Download size={16} />
-                {results.length > 1 ? "Download all" : "Download"}
+                {style === "wall-print" ? "Download JPG sheets" : results.length > 1 ? "Download all" : "Download"}
               </button>
               <button
                 onClick={generateCaption}
-                disabled={busy}
+                disabled={busy || style === "wall-print"}
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white text-sm font-semibold transition-colors"
               >
                 <Sparkles size={16} />

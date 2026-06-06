@@ -29,6 +29,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local wall-print batch inputs/outputs
+/wall-print/input/*
+/wall-print/output/*
+!/wall-print/input/.gitkeep
+!/wall-print/output/.gitkeep
+
 # claude code local settings
 .claude/
 

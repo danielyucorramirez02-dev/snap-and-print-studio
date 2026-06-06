@@ -18,7 +18,7 @@ const navItems = [
   { href: "/gallery",   label: "Client Gallery",     icon: Images,       roles: ["owner", "staff"] as UserRole[] },
   { href: "/content",   label: "Content Bank",       icon: ClipboardList, roles: ["owner", "staff"] as UserRole[] },
   { href: "/caption",   label: "Caption Generator",  icon: Sparkles,     roles: ["owner", "staff"] as UserRole[] },
-  { href: "/photo-tool", label: "Instax Maker",      icon: Frame,        roles: ["owner", "staff"] as UserRole[] },
+  { href: "/photo-tool", label: "Photo Tools",       icon: Frame,        roles: ["owner", "staff"] as UserRole[] },
   { href: "/expenses",  label: "Expenses",           icon: Receipt,      roles: ["owner"] as UserRole[] },
   { href: "/settings",  label: "Settings",           icon: Settings,     roles: ["owner"] as UserRole[] },
 ];

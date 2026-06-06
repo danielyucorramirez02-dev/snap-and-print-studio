@@ -15,8 +15,8 @@ export default function PhotoToolPage() {
           <Frame size={20} className="text-brand-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">Instax Maker</h1>
-          <p className="text-charcoal-400 text-sm">Frame client photos for your Facebook posts</p>
+          <h1 className="text-2xl font-bold text-white">Photo Tools</h1>
+          <p className="text-charcoal-400 text-sm">Prepare Instax frames, logo photos, and 4x6 wall-print PDFs</p>
         </div>
       </div>
 

@@ -71,7 +71,7 @@ export default function TodayPostCard({
             className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-charcoal-800 border border-charcoal-700 hover:border-brand-500/40 transition-colors"
           >
             <Camera size={16} className="text-brand-400 shrink-0" />
-            <span className="text-white text-xs font-medium">Instax Maker</span>
+            <span className="text-white text-xs font-medium">Photo Tools</span>
           </Link>
           <Link
             href="/caption"

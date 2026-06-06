@@ -537,7 +537,7 @@ export default async function DashboardHomePage() {
               <QuickAction href="/new-booking" icon={PlusCircle} label="Create booking" detail="Walk-in or manual booking" />
               <QuickAction href="/calendar" icon={CalendarRange} label="Open calendar" detail="Schedule, slots, and follow-ups" />
               <QuickAction href="/caption" icon={Sparkles} label="Write caption" detail="Generate or modify post copy" />
-              <QuickAction href="/photo-tool" icon={Frame} label="Instax maker" detail="Prepare daily post visuals" />
+              <QuickAction href="/photo-tool" icon={Frame} label="Photo tools" detail="Prepare posts and wall prints" />
             </div>
           </div>
         </div>
