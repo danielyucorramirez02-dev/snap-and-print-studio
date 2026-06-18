@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { sendBookingReminder } from "@/lib/email";
+import { sendBookingReminder, sendStudioArrivalReminder } from "@/lib/email";
+import { manilaDateString, minutesUntilBooking } from "@/lib/utils/booking-time";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -8,6 +9,7 @@ export const runtime = "nodejs";
 interface BookingRow {
   id: string;
   client_name: string;
+  client_phone: string;
   client_email: string | null;
   booking_date: string;
   booking_time: string;
@@ -17,13 +19,14 @@ interface BookingRow {
   service: { name: string } | { name: string }[] | null;
 }
 
-function tomorrowDateInManila(): string {
-  // Manila is UTC+8 (no DST). Shift current UTC time to Manila, add 1 day,
-  // then format as YYYY-MM-DD using UTC getters (we already pre-shifted).
-  const shifted = new Date(Date.now() + 8 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000);
-  const y = shifted.getUTCFullYear();
-  const m = String(shifted.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(shifted.getUTCDate()).padStart(2, "0");
+const REMINDER_WINDOW_MINUTES = { min: 20, max: 35 };
+
+function addDays(dateStr: string, days: number): string {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
 
@@ -53,53 +56,78 @@ export async function GET(req: NextRequest) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const tomorrow = tomorrowDateInManila();
+  const today = manilaDateString();
+  const tomorrow = addDays(today, 1);
 
-  const { data: due, error: queryError } = await supabase
+  const { data: candidates, error: queryError } = await supabase
     .from("bookings")
     .select(
-      "id, client_name, client_email, booking_date, booking_time, booking_token, total_amount, downpayment_amount, service:services(name)"
+      "id, client_name, client_phone, client_email, booking_date, booking_time, booking_token, total_amount, downpayment_amount, service:services(name)"
     )
     .eq("booking_status", "confirmed")
     .eq("reminder_sent", false)
-    .eq("booking_date", tomorrow);
+    .in("booking_date", [today, tomorrow]);
 
   if (queryError) {
     return NextResponse.json({ error: queryError.message }, { status: 500 });
   }
 
-  const dueBookings = (due as BookingRow[] | null) ?? [];
+  const dueBookings = ((candidates as BookingRow[] | null) ?? []).filter((booking) => {
+    const minutesUntil = minutesUntilBooking(booking.booking_date, booking.booking_time);
+    return minutesUntil >= REMINDER_WINDOW_MINUTES.min && minutesUntil <= REMINDER_WINDOW_MINUTES.max;
+  });
 
-  let sent = 0;
+  let clientSent = 0;
+  let studioSent = 0;
   let skippedNoEmail = 0;
   const errors: { id: string; error: string }[] = [];
 
   for (const b of dueBookings) {
-    if (!b.client_email) {
-      skippedNoEmail++;
-      continue;
-    }
-
     const service = Array.isArray(b.service) ? b.service[0] : b.service;
     const serviceName = service?.name ?? "Session";
 
     const total = Number(b.total_amount);
     const paid = Number(b.downpayment_amount);
     const balance = Math.max(0, total - paid);
+    const leadMinutes = minutesUntilBooking(b.booking_date, b.booking_time);
 
-    const emailResult = await sendBookingReminder({
+    const studioResult = await sendStudioArrivalReminder({
       clientName: b.client_name,
+      clientPhone: b.client_phone,
       clientEmail: b.client_email,
       bookingDate: b.booking_date,
       bookingTime: b.booking_time,
       serviceName,
       balance,
+      leadMinutes,
       bookingToken: b.booking_token,
     });
 
-    if ("error" in emailResult) {
-      errors.push({ id: b.id, error: emailResult.error ?? "Email send failed" });
+    if ("error" in studioResult) {
+      errors.push({ id: b.id, error: `Studio reminder: ${studioResult.error ?? "Email send failed"}` });
       continue;
+    }
+    studioSent++;
+
+    if (!b.client_email) {
+      skippedNoEmail++;
+    } else {
+      const emailResult = await sendBookingReminder({
+        clientName: b.client_name,
+        clientEmail: b.client_email,
+        bookingDate: b.booking_date,
+        bookingTime: b.booking_time,
+        serviceName,
+        balance,
+        leadMinutes,
+        bookingToken: b.booking_token,
+      });
+
+      if ("error" in emailResult) {
+        errors.push({ id: b.id, error: `Client reminder: ${emailResult.error ?? "Email send failed"}` });
+      } else {
+        clientSent++;
+      }
     }
 
     const { error: updateError } = await supabase
@@ -115,14 +143,15 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    sent++;
   }
 
   return NextResponse.json({
     timestamp: new Date().toISOString(),
-    tomorrowManila: tomorrow,
+    todayManila: today,
+    reminderWindowMinutes: REMINDER_WINDOW_MINUTES,
     due: dueBookings.length,
-    sent,
+    studioSent,
+    clientSent,
     skippedNoEmail,
     errors,
   });

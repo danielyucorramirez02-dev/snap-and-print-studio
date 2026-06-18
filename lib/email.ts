@@ -15,6 +15,19 @@ function getFromEmail() {
   return process.env.RESEND_FROM_EMAIL ?? "noreply@resend.dev";
 }
 
+function getStudioNotificationEmails(): string[] {
+  const raw =
+    process.env.STUDIO_NOTIFICATION_EMAILS ??
+    process.env.STUDIO_NOTIFICATION_EMAIL ??
+    process.env.OWNER_EMAIL ??
+    "";
+
+  return raw
+    .split(",")
+    .map((email) => email.trim())
+    .filter(Boolean);
+}
+
 function baseTemplate(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html>
@@ -123,6 +136,63 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
   return { success: true };
 }
 
+export interface StudioNewBookingEmailData {
+  clientName: string;
+  clientPhone: string;
+  clientEmail: string;
+  bookingDate: string;
+  bookingTime: string;
+  serviceName: string;
+  totalAmount: number;
+  downpaymentAmount: number;
+  balance: number;
+  bookingStatus: string;
+  notes?: string | null;
+  receiptUrl?: string | null;
+  bookingToken: string;
+}
+
+export async function sendStudioNewBookingNotification(data: StudioNewBookingEmailData) {
+  const resend = getResend();
+  if (!resend) return { error: "Email not configured. Add RESEND_API_KEY to .env.local." };
+
+  const recipients = getStudioNotificationEmails();
+  if (recipients.length === 0) return { error: "Studio notification email is not configured." };
+
+  const bookingUrl = `${APP_URL}/my-booking/${data.bookingToken}`;
+  const notes = data.notes?.trim();
+
+  const body = `
+    <p style="color:#ccccdd;margin:0 0 20px;font-size:14px;line-height:1.6;">
+      New booking request from <strong style="color:#fff;">${data.clientName}</strong>.
+    </p>
+    <table style="width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+      ${detailRow("Date", formatDate(data.bookingDate))}
+      ${detailRow("Time", `${formatTime(data.bookingTime)} (preferred)`)}
+      ${detailRow("Package", data.serviceName)}
+      ${detailRow("Client Phone", data.clientPhone)}
+      ${detailRow("Client Email", data.clientEmail || "None")}
+      ${detailRow("Total", formatPeso(data.totalAmount))}
+      ${detailRow("Downpayment", formatPeso(data.downpaymentAmount))}
+      ${detailRow("Balance", formatPeso(data.balance))}
+      ${detailRow("Status", data.bookingStatus)}
+      ${notes ? detailRow("Notes", notes) : ""}
+    </table>
+    ${data.receiptUrl ? ctaButton("Open Receipt", data.receiptUrl) : ""}
+    ${ctaButton("Open Booking", bookingUrl)}
+  `;
+
+  const { error } = await resend.emails.send({
+    from: getFromEmail(),
+    to: recipients,
+    subject: `New booking request - ${data.clientName} - ${formatDate(data.bookingDate)} ${formatTime(data.bookingTime)}`,
+    html: baseTemplate("New Booking Request", body),
+  });
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 export interface DownpaymentConfirmedData {
   clientName: string;
   clientEmail: string;
@@ -184,6 +254,7 @@ export interface BookingReminderData {
   serviceName: string;
   balance: number;
   bookingToken: string;
+  leadMinutes?: number;
 }
 
 export async function sendBookingReminder(data: BookingReminderData) {
@@ -195,7 +266,7 @@ export async function sendBookingReminder(data: BookingReminderData) {
   const body = `
     <p style="color:#ccccdd;margin:0 0 20px;font-size:14px;line-height:1.6;">
       Hi <strong style="color:#fff;">${data.clientName}</strong>!
-      Just a friendly reminder — your session at <strong>${STUDIO_NAME}</strong> is <strong style="color:#f59e0b;">tomorrow</strong>. We can't wait to see you!
+      Just a friendly reminder — your session at <strong>${STUDIO_NAME}</strong> starts <strong style="color:#f59e0b;">soon</strong>. We can't wait to see you!
     </p>
     <table style="width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:8px;overflow:hidden;margin-bottom:20px;">
       ${detailRow("Date", formatDate(data.bookingDate))}
@@ -219,8 +290,54 @@ export async function sendBookingReminder(data: BookingReminderData) {
   const { error } = await resend.emails.send({
     from: getFromEmail(),
     to: data.clientEmail,
-    subject: `⏰ Reminder: Your session tomorrow — ${STUDIO_NAME}`,
-    html: baseTemplate("Your session is tomorrow!", body),
+    subject: `Reminder: Your session starts soon - ${STUDIO_NAME}`,
+    html: baseTemplate("Your session starts soon!", body),
+  });
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+export async function sendStudioArrivalReminder(data: {
+  clientName: string;
+  clientPhone: string;
+  clientEmail: string | null;
+  bookingDate: string;
+  bookingTime: string;
+  serviceName: string;
+  balance: number;
+  leadMinutes: number;
+  bookingToken: string;
+}) {
+  const resend = getResend();
+  if (!resend) return { error: "Email not configured. Add RESEND_API_KEY to .env.local." };
+
+  const recipients = getStudioNotificationEmails();
+  if (recipients.length === 0) return { error: "Studio notification email is not configured." };
+
+  const bookingUrl = `${APP_URL}/my-booking/${data.bookingToken}`;
+
+  const body = `
+    <p style="color:#ccccdd;margin:0 0 20px;font-size:14px;line-height:1.6;">
+      <strong style="color:#fff;">${data.clientName}</strong> is scheduled to arrive in about
+      <strong style="color:#f59e0b;">${data.leadMinutes} minutes</strong>.
+    </p>
+    <table style="width:100%;border-collapse:collapse;background:#1a1a2e;border-radius:8px;overflow:hidden;margin-bottom:20px;">
+      ${detailRow("Date", formatDate(data.bookingDate))}
+      ${detailRow("Time", formatTime(data.bookingTime))}
+      ${detailRow("Package", data.serviceName)}
+      ${detailRow("Client Phone", data.clientPhone)}
+      ${detailRow("Client Email", data.clientEmail || "None")}
+      ${data.balance > 0 ? detailRow("Balance Due", formatPeso(data.balance)) : detailRow("Payment", "Fully paid")}
+    </table>
+    ${ctaButton("Open Booking", bookingUrl)}
+  `;
+
+  const { error } = await resend.emails.send({
+    from: getFromEmail(),
+    to: recipients,
+    subject: `Arrival soon: ${data.clientName} at ${formatTime(data.bookingTime)}`,
+    html: baseTemplate("Client Arrival Reminder", body),
   });
 
   if (error) return { error: error.message };

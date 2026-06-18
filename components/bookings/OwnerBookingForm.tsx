@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { bookingSchema, type BookingFormData } from "@/lib/validations/booking";
 import { createBooking } from "@/app/(dashboard)/calendar/actions";
+import { formatAddonNotes, getSelfShootAddons } from "@/lib/booking-addons";
 import { formatPeso } from "@/lib/utils/formatters";
 import { CheckCircle2, AlertCircle, CalendarDays } from "lucide-react";
 import type { Service } from "@/types";
@@ -42,6 +43,7 @@ function Field({ label, required, error, children }: {
 export default function OwnerBookingForm({ services }: { services: Service[] }) {
   const [serverError, setServerError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [selectedAddonIds, setSelectedAddonIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
   const {
@@ -67,20 +69,42 @@ export default function OwnerBookingForm({ services }: { services: Service[] }) 
   const balance      = Math.max(0, totalAmount - downpayment);
 
   const selectedService = services.find((s) => s.id === packageId);
+  const isSelfShoot = selectedService?.category === "self-shoot";
   const isMilestone = selectedService?.category === "milestone";
   const isCoverage = selectedService?.category === "coverage";
   const canAddSecondPlace = COVERAGE_SECOND_PLACE_EVENTS.has(coverageEventType);
+  const addons = getSelfShootAddons(selectedService?.name);
+  const selectedAddons = isSelfShoot ? addons.filter((addon) => selectedAddonIds.has(addon.id)) : [];
+  const addonTotal = selectedAddons.reduce((sum, addon) => sum + addon.price, 0);
 
   useEffect(() => {
     if (selectedService) {
-      setValue("total_amount", selectedService.price, { shouldValidate: false });
+      setValue("total_amount", selectedService.price + addonTotal, { shouldValidate: false });
     }
-  }, [selectedService, setValue]);
+  }, [selectedService, addonTotal, setValue]);
+
+  useEffect(() => {
+    if (!isSelfShoot) setSelectedAddonIds(new Set());
+  }, [isSelfShoot]);
+
+  const toggleAddon = (id: string) => {
+    setSelectedAddonIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const onSubmit = (data: BookingFormData) => {
     setServerError("");
     startTransition(async () => {
-      const result = await createBooking(data);
+      const addonNotes = formatAddonNotes(selectedAddons);
+      const notes = [addonNotes, data.notes?.trim()].filter(Boolean).join(" | ");
+      const result = await createBooking({
+        ...data,
+        notes,
+      });
       if ("error" in result) { setServerError(result.error); return; }
       setSuccess(true);
     });
@@ -242,6 +266,38 @@ export default function OwnerBookingForm({ services }: { services: Service[] }) 
       )}
 
       {/* ── Payment ── */}
+      {isSelfShoot && (
+        <section className="bg-charcoal-900 border border-charcoal-800 rounded-2xl p-5">
+          <SectionHeader>Add-ons (Optional)</SectionHeader>
+          <div className="space-y-2">
+            {addons.map((addon) => {
+              const checked = selectedAddonIds.has(addon.id);
+              return (
+                <label
+                  key={addon.id}
+                  className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                    checked
+                      ? "border-brand-500/40 bg-brand-500/10 text-white"
+                      : "border-charcoal-700 bg-charcoal-800 text-charcoal-300"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleAddon(addon.id)}
+                    className="accent-brand-500"
+                  />
+                  <span className="flex-1">{addon.label}</span>
+                  <span className={checked ? "font-semibold text-brand-400" : "text-charcoal-400"}>
+                    +{formatPeso(addon.price)}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <section className="bg-charcoal-900 border border-charcoal-800 rounded-2xl p-5">
         <SectionHeader>Payment</SectionHeader>
         <div className="space-y-4">

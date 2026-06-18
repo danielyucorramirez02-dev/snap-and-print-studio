@@ -24,10 +24,15 @@ const PAYMENT_BADGE: Record<string, string> = {
 // The studio runs in the Philippines (UTC+8); "today" must be the Manila date.
 function manilaParts() {
   const date = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
-  const hour = Number(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Manila", hour12: false, hour: "2-digit" })
-  );
-  return { date, hour };
+  const timeParts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(new Date());
+  const hour = Number(timeParts.find((part) => part.type === "hour")?.value ?? 0);
+  const minute = Number(timeParts.find((part) => part.type === "minute")?.value ?? 0);
+  return { date, hour, minute };
 }
 
 function addDays(dateStr: string, days: number): string {
@@ -287,7 +292,8 @@ export default async function DashboardHomePage() {
     .order("item_name", { ascending: true });
   const inventoryItems = (inventoryData ?? []) as InventoryItem[];
 
-  const { date: today, hour } = manilaParts();
+  const { date: today, hour, minute } = manilaParts();
+  const currentTime = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
   const tomorrow = addDays(today, 1);
   const weekAgo = addDays(today, -6);
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -302,7 +308,11 @@ export default async function DashboardHomePage() {
     (b) => b.booking_date === tomorrow && b.balance > 0 && b.payment_status !== "paid"
   );
   const reminderFollowUps = bookings.filter(
-    (b) => b.booking_date === tomorrow && b.booking_status === "confirmed" && !b.reminder_sent && !!b.client_email
+    (b) =>
+      b.booking_date === today &&
+      b.booking_time.substring(0, 5) >= currentTime &&
+      b.booking_status === "confirmed" &&
+      !b.reminder_sent
   );
   const shootsToMarkDone = bookings
     .filter((b) => b.booking_status === "confirmed" && b.booking_date < today && normalizeProductionStatus(b.production_status) === "not_started")
@@ -388,8 +398,8 @@ export default async function DashboardHomePage() {
     })),
     ...reminderFollowUps.slice(0, 2).map((booking): WorkItem => ({
       key: `reminder-${booking.id}`,
-      title: `Reminder not sent: ${booking.client_name}`,
-      detail: `Tomorrow at ${formatTime(booking.booking_time)} · email available`,
+      title: `Arrival reminder pending: ${booking.client_name}`,
+      detail: `Today at ${formatTime(booking.booking_time)} · sends about 30 minutes before`,
       href: "/calendar",
       cta: "Open",
       icon: Mail,

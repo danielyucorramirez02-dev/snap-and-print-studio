@@ -8,6 +8,7 @@ import { createBooking } from "@/app/(dashboard)/calendar/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatAddonNotes, getSelfShootAddons } from "@/lib/booking-addons";
 import { X, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { formatPeso } from "@/lib/utils/formatters";
@@ -23,6 +24,7 @@ interface BookingModalProps {
 
 export default function BookingModal({ services, onClose }: BookingModalProps) {
   const [serverError, setServerError] = useState("");
+  const [selectedAddonIds, setSelectedAddonIds] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
   const {
@@ -56,13 +58,21 @@ export default function BookingModal({ services, onClose }: BookingModalProps) {
   const downpaymentAmount = watch("downpayment_amount") || 0;
   const balance = Number(totalAmount) - Number(downpaymentAmount);
   const selectedService = services.find((s) => s.id === selectedPackageId);
+  const isSelfShoot = selectedService?.category === "self-shoot";
   const isCoverage = selectedService?.category === "coverage";
   const canAddSecondPlace = COVERAGE_SECOND_PLACE_EVENTS.has(coverageEventType);
+  const addons = getSelfShootAddons(selectedService?.name);
+  const selectedAddons = isSelfShoot ? addons.filter((addon) => selectedAddonIds.has(addon.id)) : [];
+  const addonTotal = selectedAddons.reduce((sum, addon) => sum + addon.price, 0);
 
   useEffect(() => {
     if (!selectedPackageId) return;
-    if (selectedService) setValue("total_amount", selectedService.price, { shouldValidate: false });
-  }, [selectedPackageId, selectedService, setValue]);
+    if (selectedService) setValue("total_amount", selectedService.price + addonTotal, { shouldValidate: false });
+  }, [selectedPackageId, selectedService, addonTotal, setValue]);
+
+  useEffect(() => {
+    if (!isSelfShoot) setSelectedAddonIds(new Set());
+  }, [isSelfShoot]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -75,13 +85,28 @@ export default function BookingModal({ services, onClose }: BookingModalProps) {
   const onSubmit = (data: BookingFormData) => {
     setServerError("");
     startTransition(async () => {
-      const result = await createBooking(data);
+      const addonNotes = formatAddonNotes(selectedAddons);
+      const notes = [addonNotes, data.notes?.trim()].filter(Boolean).join(" | ");
+      const result = await createBooking({
+        ...data,
+        notes,
+      });
       if ("error" in result) {
         setServerError(result.error);
         return;
       }
+      setSelectedAddonIds(new Set());
       reset();
       onClose();
+    });
+  };
+
+  const toggleAddon = (id: string) => {
+    setSelectedAddonIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
   };
 
@@ -236,6 +261,38 @@ export default function BookingModal({ services, onClose }: BookingModalProps) {
                   />
                 </div>
               )}
+            </div>
+          )}
+
+          {isSelfShoot && (
+            <div className="space-y-2">
+              <Label className="text-charcoal-300">Add-ons <span className="text-charcoal-500 text-xs font-normal">(optional)</span></Label>
+              <div className="space-y-2">
+                {addons.map((addon) => {
+                  const checked = selectedAddonIds.has(addon.id);
+                  return (
+                    <label
+                      key={addon.id}
+                      className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                        checked
+                          ? "border-brand-500/40 bg-brand-500/10 text-white"
+                          : "border-charcoal-700 bg-charcoal-800 text-charcoal-300"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleAddon(addon.id)}
+                        className="accent-brand-500"
+                      />
+                      <span className="flex-1">{addon.label}</span>
+                      <span className={checked ? "font-semibold text-brand-400" : "text-charcoal-400"}>
+                        +{formatPeso(addon.price)}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           )}
 

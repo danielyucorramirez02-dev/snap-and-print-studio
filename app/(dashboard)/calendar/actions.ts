@@ -6,6 +6,7 @@ import { bookingSchema, type BookingFormData } from "@/lib/validations/booking";
 import { sendBookingConfirmation, sendGalleryLink } from "@/lib/email";
 import { logBookingToSheet, updateBookingInSheet, deleteBookingFromSheet } from "@/lib/google-sheets";
 import { PRODUCTION_STATUS_ORDER } from "@/lib/booking-production";
+import { violatesBookingLeadTime } from "@/lib/utils/booking-time";
 import type { AttendanceStatus, ProductionStatus } from "@/types";
 
 const COVERAGE_EVENT_TYPES = ["Debut", "Birthday", "Baptism", "Wedding", "Other"] as const;
@@ -29,6 +30,10 @@ export async function createBooking(
     celebrant_name, turning_age, theme,
     event_type, event_place_primary, event_place_secondary,
   } = parsed.data;
+
+  if (violatesBookingLeadTime(booking_date, booking_time)) {
+    return { error: "Please book more than 1 hour before the session time." };
+  }
 
   const { data: service } = await supabase
     .from("services")
@@ -483,6 +488,9 @@ export async function rescheduleBooking(
   }
   if (!/^\d{2}:\d{2}$/.test(bookingTime)) {
     return { error: "Please choose a valid time." };
+  }
+  if (violatesBookingLeadTime(bookingDate, bookingTime)) {
+    return { error: "Please book more than 1 hour before the session time." };
   }
 
   const { data: booking, error: fetchError } = await supabase

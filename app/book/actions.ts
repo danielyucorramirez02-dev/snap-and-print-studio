@@ -13,8 +13,9 @@ import {
   type SlotAvailabilityReason,
   type TimeBlock,
 } from "@/lib/utils/slots";
-import { sendBookingConfirmation } from "@/lib/email";
+import { sendBookingConfirmation, sendStudioNewBookingNotification } from "@/lib/email";
 import { logBookingToSheet } from "@/lib/google-sheets";
+import { filterSlotsByLeadTime, violatesBookingLeadTime } from "@/lib/utils/booking-time";
 import type { Booking, Service } from "@/types";
 
 const COVERAGE_EVENT_TYPES = ["Debut", "Birthday", "Baptism", "Wedding", "Other"] as const;
@@ -175,7 +176,7 @@ export async function getAvailableSlots(
     return { slots: [], reason: "capped" };
   }
 
-  const slots = getSelfShootSlots(dateStr, service, heldBookings, block.ranges);
+  const slots = filterSlotsByLeadTime(dateStr, getSelfShootSlots(dateStr, service, heldBookings, block.ranges));
   if (slots.length === 0) return { slots: [], reason: "no-slots" };
   return { slots, reason: "open" };
 }
@@ -194,11 +195,13 @@ export async function getBookedMilestoneSlots(
     .filter((b) => b.service?.category === "milestone" || b.service?.category === "coverage")
     .map((b) => b.booking_time.substring(0, 5));
 
-  const blockedSlots = ["08:00", "09:00", "10:00", "14:00", "15:00", "16:00"].filter((slot) =>
+  const fixedSlots = ["08:00", "09:00", "10:00", "14:00", "15:00", "16:00"];
+  const blockedSlots = fixedSlots.filter((slot) =>
     block.ranges.some((range) => rangesOverlap(slot, toTimeString(toMinutes(slot) + 60), range.start_time!, range.end_time!))
   );
+  const leadTimeBlockedSlots = fixedSlots.filter((slot) => violatesBookingLeadTime(dateStr, slot));
 
-  return { booked: Array.from(new Set([...booked, ...blockedSlots])), closed: false };
+  return { booked: Array.from(new Set([...booked, ...blockedSlots, ...leadTimeBlockedSlots])), closed: false };
 }
 
 export async function createPublicBooking(input: {
@@ -229,6 +232,10 @@ export async function createPublicBooking(input: {
 
   if (!serviceData) return { error: "Package not found." };
   const service = serviceData as Service;
+
+  if (violatesBookingLeadTime(input.date, input.time)) {
+    return { error: "Please book more than 1 hour before the session time." };
+  }
 
   if (service.category === "coverage") {
     if (!input.eventType || !COVERAGE_EVENT_TYPES.includes(input.eventType as typeof COVERAGE_EVENT_TYPES[number])) {
@@ -342,6 +349,25 @@ export async function createPublicBooking(input: {
     eventPlacePrimary: input.eventPlacePrimary,
     eventPlaceSecondary: input.eventPlaceSecondary,
   });
+
+  const studioEmailResult = await sendStudioNewBookingNotification({
+    clientName: input.clientName,
+    clientPhone: input.clientPhone,
+    clientEmail: input.clientEmail,
+    bookingDate: input.date,
+    bookingTime: input.time,
+    serviceName: service.name,
+    totalAmount: input.totalAmount,
+    downpaymentAmount: input.downpaymentAmount,
+    balance: input.totalAmount - input.downpaymentAmount,
+    bookingStatus,
+    notes: input.addonNotes,
+    receiptUrl: input.receiptUrl,
+    bookingToken: token,
+  });
+  if ("error" in studioEmailResult) {
+    console.error("Failed to send studio new-booking notification:", studioEmailResult.error);
+  }
 
   return { success: true, token, status: bookingStatus };
 }

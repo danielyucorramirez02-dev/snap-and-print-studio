@@ -9,6 +9,7 @@ import {
   getStudioHoursForDate, formatSlotLabel, getSelfShootBlockMinutes,
 } from "@/lib/utils/slots";
 import { formatPeso } from "@/lib/utils/formatters";
+import { getSelfShootAddons } from "@/lib/booking-addons";
 import { createClient } from "@/lib/supabase/client";
 import {
   ChevronLeft, CheckCircle2, Loader2, AlertCircle,
@@ -117,12 +118,6 @@ function StepIndicator({ index, total, label }: { index: number; total: number; 
   );
 }
 
-interface AddonItem {
-  id: string;
-  label: string;
-  price: number;
-}
-
 interface BookingFlowProps {
   services: Service[];
 }
@@ -172,18 +167,7 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
   const requiredDownpayment = sessionType === "self-shoot" ? 50 : 200;
 
-  const addons: AddonItem[] = useMemo(() => {
-    const isSoloOrPakners = selectedService ? /solo|pakner/i.test(selectedService.name) : true;
-    return [
-      { id: "4r-hard-copy",      label: "4R Hard Copy",                                                                           price: 30  },
-      { id: "additional-person", label: "Additional Person",                                                                       price: 80  },
-      { id: "a4-sintra-board",   label: "A4 Sintra Board",                                                                         price: 90  },
-      { id: "a4-print",          label: "A4 Print",                                                                                price: 70  },
-      { id: "props-access",      label: "Full Access to All Props",                                                                 price: 50  },
-      { id: "add-background",    label: "Add 1 Background",                                                                        price: 150 },
-      { id: "all-soft-copies",   label: isSoloOrPakners ? "All Soft Copies (Solo/Pakners)" : "All Soft Copies (Trio/Tropa/Family)", price: isSoloOrPakners ? 100 : 150 },
-    ];
-  }, [selectedService]);
+  const addons = useMemo(() => getSelfShootAddons(selectedService?.name), [selectedService]);
 
   const selectedAddons = addons.filter((a) => selectedAddonIds.has(a.id));
   const addonTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0);
