@@ -197,7 +197,7 @@ function DayDetailModal({ day, bookings, onBookingClick, onClose }: DayDetailMod
   );
 }
 
-export default function CalendarClient({ bookings, services, userRole: _userRole, blockedDates, blockedTimeSlots }: CalendarClientProps) {
+export default function CalendarClient({ bookings, services, userRole, blockedDates, blockedTimeSlots }: CalendarClientProps) {
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerBooking, setDrawerBooking] = useState<Booking | undefined>(undefined);
@@ -339,6 +339,7 @@ export default function CalendarClient({ bookings, services, userRole: _userRole
       {drawerBooking && (
         <BookingDrawer
           booking={drawerBooking}
+          userRole={userRole}
           onClose={() => setDrawerBooking(undefined)}
         />
       )}

@@ -412,6 +412,48 @@ export async function updateInternalNotes(
   return { success: true };
 }
 
+export async function updateBookingNavigationLocation(
+  bookingId: string,
+  location: { label: string; latitude: number; longitude: number } | null
+): Promise<{ success: true } | { error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Not authenticated." };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  if (profile?.role !== "owner") return { error: "Only the owner can update booking locations." };
+
+  if (location) {
+    const label = location.label.trim();
+    if (!label || label.length > 200) return { error: "Please enter a valid location name." };
+    if (!Number.isFinite(location.latitude) || location.latitude < -90 || location.latitude > 90) {
+      return { error: "Please choose a valid map pin." };
+    }
+    if (!Number.isFinite(location.longitude) || location.longitude < -180 || location.longitude > 180) {
+      return { error: "Please choose a valid map pin." };
+    }
+  }
+
+  const { error } = await supabase
+    .from("bookings")
+    .update({
+      navigation_label: location?.label.trim() ?? null,
+      navigation_latitude: location?.latitude ?? null,
+      navigation_longitude: location?.longitude ?? null,
+    })
+    .eq("id", bookingId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/");
+  revalidatePath("/calendar");
+  return { success: true };
+}
+
 export async function updateAttendanceStatus(
   bookingId: string,
   attendanceStatus: AttendanceStatus

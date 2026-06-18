@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import {
   X, CheckCircle2, AlertCircle, Trash2, Printer, Mail, Image, Clock, BadgeCheck,
   ExternalLink, Phone, MessageCircle, Save, UserCheck, UserX,
@@ -18,6 +19,7 @@ import {
   sendGalleryEmail,
   updateProductionStatus,
   updateInternalNotes,
+  updateBookingNavigationLocation,
   updateAttendanceStatus,
   cancelBookingWithReason,
   rescheduleBooking,
@@ -28,14 +30,20 @@ import {
   PRODUCTION_STATUS_STYLES,
   normalizeProductionStatus,
 } from "@/lib/booking-production";
-import type { AttendanceStatus, Booking, PaymentStatus, ProductionStatus } from "@/types";
+import type { AttendanceStatus, Booking, PaymentStatus, ProductionStatus, UserRole } from "@/types";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 interface BookingDrawerProps {
   booking: Booking;
+  userRole: UserRole;
   onClose: () => void;
 }
+
+const BookingLocationPicker = dynamic(
+  () => import("@/components/bookings/BookingLocationPicker"),
+  { ssr: false }
+);
 
 const STATUS_STYLES: Record<PaymentStatus, string> = {
   paid: "bg-green-500/15 text-green-400 border border-green-500/25",
@@ -69,13 +77,16 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function BookingDrawer({ booking, onClose }: BookingDrawerProps) {
+export default function BookingDrawer({ booking, userRole, onClose }: BookingDrawerProps) {
   const [newDownpayment, setNewDownpayment] = useState(booking.downpayment_amount);
   const [productionStatus, setProductionStatus] = useState<ProductionStatus>(
     normalizeProductionStatus(booking.production_status)
   );
   const [attendanceStatus, setAttendanceStatus] = useState<AttendanceStatus>(booking.attendance_status ?? "scheduled");
   const [internalNotes, setInternalNotes] = useState(booking.internal_notes ?? "");
+  const [navigationLabel, setNavigationLabel] = useState(booking.navigation_label ?? "");
+  const [navigationLatitude, setNavigationLatitude] = useState<number | null>(booking.navigation_latitude ?? null);
+  const [navigationLongitude, setNavigationLongitude] = useState<number | null>(booking.navigation_longitude ?? null);
   const [cancelReason, setCancelReason] = useState(booking.cancel_reason ?? "");
   const [rescheduleDate, setRescheduleDate] = useState(booking.booking_date);
   const [rescheduleTime, setRescheduleTime] = useState(booking.booking_time.slice(0, 5));
@@ -95,10 +106,13 @@ export default function BookingDrawer({ booking, onClose }: BookingDrawerProps) 
     setProductionStatus(normalizeProductionStatus(booking.production_status));
     setAttendanceStatus(booking.attendance_status ?? "scheduled");
     setInternalNotes(booking.internal_notes ?? "");
+    setNavigationLabel(booking.navigation_label ?? "");
+    setNavigationLatitude(booking.navigation_latitude ?? null);
+    setNavigationLongitude(booking.navigation_longitude ?? null);
     setCancelReason(booking.cancel_reason ?? "");
     setRescheduleDate(booking.booking_date);
     setRescheduleTime(booking.booking_time.slice(0, 5));
-  }, [booking.id, booking.downpayment_amount, booking.production_status, booking.attendance_status, booking.internal_notes, booking.cancel_reason, booking.booking_date, booking.booking_time]);
+  }, [booking.id, booking.downpayment_amount, booking.production_status, booking.attendance_status, booking.internal_notes, booking.navigation_label, booking.navigation_latitude, booking.navigation_longitude, booking.cancel_reason, booking.booking_date, booking.booking_time]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -185,6 +199,30 @@ export default function BookingDrawer({ booking, onClose }: BookingDrawerProps) 
       const result = await updateInternalNotes(booking.id, internalNotes);
       if ("error" in result) { setServerError(result.error); return; }
       setSuccessMsg("Internal notes saved.");
+    });
+  };
+
+  const handleSaveNavigationLocation = (location: { label: string; latitude: number; longitude: number }) => {
+    setServerError(""); setSuccessMsg("");
+    startTransition(async () => {
+      const result = await updateBookingNavigationLocation(booking.id, location);
+      if ("error" in result) { setServerError(result.error); return; }
+      setNavigationLabel(location.label);
+      setNavigationLatitude(location.latitude);
+      setNavigationLongitude(location.longitude);
+      setSuccessMsg("Navigation destination saved.");
+    });
+  };
+
+  const handleClearNavigationLocation = () => {
+    setServerError(""); setSuccessMsg("");
+    startTransition(async () => {
+      const result = await updateBookingNavigationLocation(booking.id, null);
+      if ("error" in result) { setServerError(result.error); return; }
+      setNavigationLabel("");
+      setNavigationLatitude(null);
+      setNavigationLongitude(null);
+      setSuccessMsg("Navigation destination removed.");
     });
   };
 
@@ -402,6 +440,22 @@ export default function BookingDrawer({ booking, onClose }: BookingDrawerProps) 
               {booking.service?.name ?? "Package removed"}
             </p>
           </div>
+
+          {/* Owner navigation */}
+          {userRole === "owner" && (
+            <div>
+              <SectionLabel>Private Navigation Destination</SectionLabel>
+              <BookingLocationPicker
+                key={`${navigationLatitude ?? "none"}-${navigationLongitude ?? "none"}`}
+                initialLabel={navigationLabel}
+                initialLatitude={navigationLatitude}
+                initialLongitude={navigationLongitude}
+                isSaving={isPending}
+                onSave={handleSaveNavigationLocation}
+                onClear={handleClearNavigationLocation}
+              />
+            </div>
+          )}
 
           {/* Reschedule */}
           <div>

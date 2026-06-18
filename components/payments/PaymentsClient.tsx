@@ -246,7 +246,7 @@ function BookingRow({ booking, payments, onAddPayment, onViewReceipt, onApproveR
 export default function PaymentsClient({
   bookings,
   paymentHistory,
-  userRole: _userRole,
+  userRole,
   totalRevenue,
   totalOutstanding,
 }: PaymentsClientProps) {
@@ -480,6 +480,7 @@ export default function PaymentsClient({
       {drawerBooking && (
         <BookingDrawer
           booking={drawerBooking}
+          userRole={userRole}
           onClose={() => setDrawerBooking(undefined)}
         />
       )}

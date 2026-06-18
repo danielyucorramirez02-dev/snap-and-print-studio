@@ -66,6 +66,9 @@ export interface Booking {
   production_status: ProductionStatus;
   attendance_status: AttendanceStatus;
   internal_notes: string | null;
+  navigation_label: string | null;
+  navigation_latitude: number | null;
+  navigation_longitude: number | null;
   cancel_reason: string | null;
   cancelled_at: string | null;
   cancelled_by: string | null;
