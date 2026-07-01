@@ -52,10 +52,10 @@ INSERT INTO services (name, category, description, price, duration_minutes, incl
   ARRAY['4-6 Hours Unlimited Shots', '2 Pcs A4 Printed Copies', '5 Pcs 4R Printed Copies', '3-5 Days Editing Process', 'All Soft Copies Enhanced', 'Highlights Photo Sent Same Day'],
   true),
 
-('Wedding Photo Coverage - 2 Hours', 'coverage', 'Wedding-focused photo coverage with all soft copies included.', 3999, 120,
-  ARRAY['2 Hours Photo Coverage', 'All Soft Copies', 'Wedding Event Coverage'],
+('Simple Church Wedding Coverage - 2 Hours', 'coverage', 'Simple church wedding photo coverage with all soft copies included.', 3999, 120,
+  ARRAY['2 Hours Simple Church Wedding Coverage', 'All Soft Copies', 'Ceremony and Key Family Photos'],
   true),
 
-('Wedding Photo Coverage - 4 Hours', 'coverage', 'Extended wedding photo coverage with all soft copies included.', 4999, 240,
-  ARRAY['4 Hours Photo Coverage', 'All Soft Copies', 'Wedding Event Coverage'],
+('Simple Church Wedding Coverage - 4 Hours', 'coverage', 'Extended simple church wedding photo coverage with all soft copies included.', 4999, 240,
+  ARRAY['4 Hours Simple Church Wedding Coverage', 'All Soft Copies', 'Ceremony, Family Photos, and Reception Moments'],
   true);
