@@ -78,6 +78,25 @@ const MILESTONE_THEMES: { value: string; emoji: string; img: string }[] = [
 
 const COVERAGE_EVENT_TYPES = ["Debut", "Birthday", "Baptism", "Wedding", "Other"] as const;
 const COVERAGE_SECOND_PLACE_EVENTS = new Set<string>(["Baptism", "Wedding"]);
+const NEARBY_PANDI_TERMS = [
+  "pandi",
+  "bunsuran",
+  "cacarong",
+  "mapulang lupa",
+  "malibong",
+  "masagana",
+  "masuso",
+  "pinagkuartelan",
+  "bagbaguin",
+  "baka-bakahan",
+  "manatal",
+  "balagtas",
+  "bocaue",
+  "santa maria",
+  "sta maria",
+  "plaridel",
+  "bustos",
+];
 
 const GCASH_NUMBER = "09623028470";
 const GCASH_NAME   = "Daniel R.";
@@ -86,8 +105,7 @@ const GCASH_NAME   = "Daniel R.";
 // Using UTC here could be off by a day near midnight Manila time.
 const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
 
-// Sample photo for each self-shoot package card. Files live in
-// /public/packages; returns null for packages without a photo.
+// Sample photo for each package card. Files live in /public.
 function packageImage(name: string): string | null {
   const n = name.toLowerCase();
   if (n.includes("solo")) return "/packages/solo-muna.jpg";
@@ -95,7 +113,39 @@ function packageImage(name: string): string | null {
   if (n.includes("trio")) return "/packages/trio.jpg";
   if (n.includes("tropa")) return "/packages/tropa-time.jpg";
   if (n.includes("family")) return "/packages/family.jpg";
+  if (n.includes("wedding")) return "/coverage/Wedding.jpg";
+  if (n.includes("baptism") || n.includes("christening")) return "/coverage/Baptism.jpg";
+  if (n.includes("debut")) return "/coverage/Debut.jpg";
+  if (n.includes("birthday")) return "/coverage/7th Birthday.jpg";
   return null;
+}
+
+function normalizeAddress(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function getCoverageTransportEstimate(primaryPlace: string, secondaryPlace: string) {
+  const places = [primaryPlace, secondaryPlace]
+    .map((place) => normalizeAddress(place))
+    .filter(Boolean);
+
+  if (places.length === 0) {
+    return {
+      label: "Waiting for address",
+      fee: 0,
+      detected: false,
+    };
+  }
+
+  const isNearby = places.every((place) =>
+    NEARBY_PANDI_TERMS.some((term) => place.includes(term))
+  );
+
+  return {
+    label: isNearby ? "Pandi / nearby" : "Outside / far",
+    fee: isNearby ? 0 : 300,
+    detected: true,
+  };
 }
 
 function StepIndicator({ index, total, label }: { index: number; total: number; label: string }) {
@@ -171,8 +221,11 @@ export default function BookingFlow({ services }: BookingFlowProps) {
 
   const selectedAddons = addons.filter((a) => selectedAddonIds.has(a.id));
   const addonTotal = selectedAddons.reduce((sum, a) => sum + a.price, 0);
-  const grandTotal = (selectedService?.price ?? 0) + addonTotal;
+  const coverageTransportEstimate = getCoverageTransportEstimate(coveragePlacePrimary, coveragePlaceSecondary);
+  const coverageTransportFee = sessionType === "coverage" && coverageTransportEstimate.detected ? coverageTransportEstimate.fee : 0;
+  const grandTotal = (selectedService?.price ?? 0) + addonTotal + coverageTransportFee;
   const canAddSecondPlace = COVERAGE_SECOND_PLACE_EVENTS.has(coverageEventType);
+  const isWeddingCoveragePackage = selectedService?.name.toLowerCase().includes("wedding") ?? false;
 
   const toggleAddon = (id: string) => {
     setSelectedAddonIds((prev) => {
@@ -289,6 +342,9 @@ export default function BookingFlow({ services }: BookingFlowProps) {
         noteParts.push(`Place: ${coveragePlacePrimary.trim()}`);
         if (canAddSecondPlace && coveragePlaceSecondary.trim()) {
           noteParts.push(`Second place: ${coveragePlaceSecondary.trim()}`);
+        }
+        if (coverageTransportEstimate.detected) {
+          noteParts.push(`Transport estimate: ${coverageTransportEstimate.label} (${formatPeso(coverageTransportFee)}, may change after photographer review)`);
         }
       }
       if (selectedAddons.length > 0) {
@@ -421,10 +477,14 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       <div className="space-y-3">
         {filteredServices.map((s) => {
           const img = packageImage(s.name);
+          const isWeddingPackage = s.name.toLowerCase().includes("wedding");
           return (
             <button key={s.id} onClick={() => {
               setSelectedService(s);
               setSelectedAddonIds(new Set());
+              if (sessionType === "coverage") {
+                setCoverageEventType(isWeddingPackage ? "Wedding" : "");
+              }
               setDate("");
               setTime("");
               setSlots([]);
@@ -540,33 +600,42 @@ export default function BookingFlow({ services }: BookingFlowProps) {
       <h2 className="text-white font-semibold text-xl mb-1">Event details</h2>
       <p className="text-charcoal-400 text-sm mb-5">Tell us what we&apos;re covering and where we&apos;re going</p>
 
-      <div className="grid grid-cols-2 gap-2.5 mb-5">
-        {COVERAGE_EVENT_TYPES.map((event) => {
-          const selected = coverageEventType === event;
-          return (
-            <button
-              key={event}
-              type="button"
-              onClick={() => {
-                setCoverageEventType(event);
-                if (!COVERAGE_SECOND_PLACE_EVENTS.has(event)) setCoveragePlaceSecondary("");
-              }}
-              className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
-                selected
-                  ? "border-brand-500 bg-brand-500/15 text-brand-200 ring-2 ring-brand-500/25"
-                  : "border-charcoal-700 bg-charcoal-800 text-charcoal-300 hover:border-brand-500/40 hover:text-white"
-              }`}
-            >
-              {event}
-            </button>
-          );
-        })}
-      </div>
+      {isWeddingCoveragePackage ? (
+        <div className="mb-5 rounded-xl border border-brand-500 bg-brand-500/15 px-3 py-3 text-sm font-semibold text-brand-200 ring-2 ring-brand-500/25">
+          Wedding
+          <p className="mt-1 text-xs font-normal text-charcoal-400">
+            Event type is fixed because you chose a wedding package.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2.5 mb-5">
+          {COVERAGE_EVENT_TYPES.map((event) => {
+            const selected = coverageEventType === event;
+            return (
+              <button
+                key={event}
+                type="button"
+                onClick={() => {
+                  setCoverageEventType(event);
+                  if (!COVERAGE_SECOND_PLACE_EVENTS.has(event)) setCoveragePlaceSecondary("");
+                }}
+                className={`rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
+                  selected
+                    ? "border-brand-500 bg-brand-500/15 text-brand-200 ring-2 ring-brand-500/25"
+                    : "border-charcoal-700 bg-charcoal-800 text-charcoal-300 hover:border-brand-500/40 hover:text-white"
+                }`}
+              >
+                {event}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {errors.coverageEventType && <p className="text-red-400 text-xs -mt-3 mb-4">{errors.coverageEventType}</p>}
 
       <div className="space-y-4">
         <div className="space-y-1.5">
-          <label className="text-charcoal-300 text-sm">Place <span className="text-red-400">*</span></label>
+          <label className="text-charcoal-300 text-sm">Full address <span className="text-red-400">*</span></label>
           <div className="relative">
             <MapPin size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-500" />
             <input
@@ -576,13 +645,14 @@ export default function BookingFlow({ services }: BookingFlowProps) {
               className="w-full rounded-lg border border-charcoal-700 bg-charcoal-800 px-9 py-2.5 text-sm text-white placeholder:text-charcoal-500 focus:outline-none focus:border-brand-500"
             />
           </div>
+          <p className="text-xs text-charcoal-500">Include the town or municipality so we can estimate transpo.</p>
           {errors.coveragePlacePrimary && <p className="text-red-400 text-xs">{errors.coveragePlacePrimary}</p>}
         </div>
 
         {canAddSecondPlace && (
           <div className="space-y-1.5">
             <label className="text-charcoal-300 text-sm">
-              Second Place <span className="text-charcoal-500 text-xs font-normal">(optional)</span>
+              Second address <span className="text-charcoal-500 text-xs font-normal">(optional)</span>
             </label>
             <div className="relative">
               <MapPin size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-500" />
@@ -595,6 +665,28 @@ export default function BookingFlow({ services }: BookingFlowProps) {
             </div>
           </div>
         )}
+
+        <div className="rounded-xl border border-charcoal-700 bg-charcoal-800 px-3 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-charcoal-200">Transport estimate</p>
+              <p className="mt-0.5 text-xs text-charcoal-500">
+                Based on the address you entered.
+              </p>
+            </div>
+            <span className={`shrink-0 text-sm font-bold ${coverageTransportFee > 0 ? "text-brand-400" : "text-green-400"}`}>
+              {!coverageTransportEstimate.detected
+                ? "Auto"
+                : coverageTransportFee > 0 ? `+${formatPeso(coverageTransportFee)}` : "Free"}
+            </span>
+          </div>
+          {coverageTransportEstimate.detected && (
+            <p className="mt-2 text-xs text-charcoal-400">{coverageTransportEstimate.label}</p>
+          )}
+          <p className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-5 text-amber-300">
+            Transpo fee is not final. It can still change after you talk with the photographer.
+          </p>
+        </div>
 
         {canAddSecondPlace && (
           <div className="rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 py-2.5 text-xs leading-5 text-brand-200">
@@ -838,6 +930,14 @@ export default function BookingFlow({ services }: BookingFlowProps) {
           <div className="flex justify-between gap-3 text-sm">
             <span className="text-charcoal-400">Second place</span>
             <span className="text-white text-right">{coveragePlaceSecondary.trim()}</span>
+          </div>
+        )}
+        {sessionType === "coverage" && coverageTransportEstimate.detected && (
+          <div className="flex justify-between text-sm">
+            <span className="text-charcoal-400">Transport estimate</span>
+            <span className={coverageTransportFee > 0 ? "text-brand-400" : "text-green-400"}>
+              {coverageTransportFee > 0 ? `+${formatPeso(coverageTransportFee)}` : "Free"}
+            </span>
           </div>
         )}
         {selectedAddons.length > 0 && (
@@ -1102,6 +1202,14 @@ export default function BookingFlow({ services }: BookingFlowProps) {
               <div className="flex justify-between gap-3 text-sm">
                 <span className="text-charcoal-400">Second place</span>
                 <span className="text-white text-right">{coveragePlaceSecondary.trim()}</span>
+              </div>
+            )}
+            {coverageTransportEstimate.detected && (
+              <div className="flex justify-between text-sm">
+                <span className="text-charcoal-400">Transport estimate</span>
+                <span className={coverageTransportFee > 0 ? "text-brand-400" : "text-green-400"}>
+                  {coverageTransportFee > 0 ? `+${formatPeso(coverageTransportFee)}` : "Free"}
+                </span>
               </div>
             )}
           </>
